@@ -1,6 +1,6 @@
-# quizez
+# Quizez
 
-Quizez - App to learn in smart way
+Quizez - App to learn and have fun in a smart way
 
 ## Getting Started
 
