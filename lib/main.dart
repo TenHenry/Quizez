@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'logic/auth/auth_bloc.dart';
+import 'logic/auth/auth_event.dart';
+import 'presentation/auth/auth_screen.dart';
 
 Future<void> main() async {
   await Supabase.initialize(
@@ -14,9 +18,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      title: 'Todos',
-      home: HomePage(),
+    return BlocProvider(
+      create: (context) => AuthBloc()..add(AppStarted()),
+      child: MaterialApp(
+        title: 'Quizez',
+        theme: ThemeData.light(),
+        home: const AuthScreen(),
+      ),
     );
   }
 }
