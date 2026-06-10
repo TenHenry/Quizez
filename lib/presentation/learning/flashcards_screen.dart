@@ -107,7 +107,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 ElevatedButton(
                   onPressed: () {
                     setState(() => isFlipped = false);
-                    context.read<LearningBloc>().add(AnswerFlashcard(card, true)); // true = Znam
+                    context.read<LearningBloc>().add(AnswerFlashcard(card, true));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
                   child: const Text('Znam', style: TextStyle(color: Colors.white)),
