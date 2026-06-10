@@ -4,26 +4,44 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'logic/auth/auth_bloc.dart';
 import 'logic/auth/auth_event.dart';
 import 'presentation/auth/auth_screen.dart';
+import 'data/services/database_service.dart';
+import 'logic/learning/learning_bloc.dart';
+import 'logic/learning/learning_event.dart';
+import 'presentation/learning/flashcards_screen.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await Supabase.initialize(
     url: 'https://vkgdqawrvaztwdchrasz.supabase.co',
     anonKey: 'sb_publishable_ql2FSmF1BVuDOu-i-zNOzA_WDCon0_o',
   );
-  runApp(MyApp());
+
+  final databaseService = DatabaseService();
+  await databaseService.db;
+
+  await databaseService.addDummyFlashcards();
+
+  runApp(MyApp(databaseService: databaseService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  const MyApp({super.key,required this.databaseService});
+
+  final DatabaseService databaseService;
+
 
   @override
   Widget build(BuildContext context) {
-    return BlocProvider(
-      create: (context) => AuthBloc()..add(AppStarted()),
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) => LearningBloc(databaseService)..add(LoadFlashcardsForToday()),
+        ),
+      ],
       child: MaterialApp(
         title: 'Quizez',
         theme: ThemeData.light(),
-        home: const AuthScreen(),
+        home: const FlashcardsScreen(), // <- Flashcard screen
       ),
     );
   }

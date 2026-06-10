@@ -46,4 +46,22 @@ class DatabaseService {
         .nextReviewLessThan(DateTime.now())
         .findAll();
   }
+
+  // --- TEST FLASHCARDS ---
+  Future<void> addDummyFlashcards() async {
+    final isar = await db;
+
+    if (await isar.flashcards.count() == 0) {
+      final dummyCards = [
+        Flashcard()..question = "Co to jest Flutter?"..answer = "Framework UI od Google",
+        Flashcard()..question = "Czym jest Isar?"..answer = "Szybką bazą NoSQL dla Fluttera",
+        Flashcard()..question = "Co to jest BLoC?"..answer = "Wzorzec zarządzania stanem",
+      ];
+
+      await isar.writeTxn(() async {
+        await isar.flashcards.putAll(dummyCards);
+      });
+      print("Dodano testowe fiszki!");
+    }
+  }
 }
