@@ -9,6 +9,7 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
   LearningBloc(this._databaseService) : super(LearningInitial()) {
     on<LoadFlashcardsForToday>(_onLoadFlashcardsForToday);
     on<AnswerFlashcard>(_onAnswerFlashcard);
+    on<ResetDemo>(_onResetDemo);
   }
 
   Future<void> _onLoadFlashcardsForToday(LoadFlashcardsForToday event, Emitter<LearningState> emit) async {
@@ -44,5 +45,11 @@ class LearningBloc extends Bloc<LearningEvent, LearningState> {
         emit(LearningError("Błąd zapisu odpowiedzi: $e"));
       }
     }
+  }
+
+  Future<void> _onResetDemo(ResetDemo event, Emitter<LearningState> emit) async {
+    emit(LearningLoading());
+    await _databaseService.resetDemoData();
+    add(LoadFlashcardsForToday());
   }
 }

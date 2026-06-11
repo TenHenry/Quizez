@@ -19,7 +19,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Tryb Nauki (Demo)', style: TextStyle(color: Colors.black)),
+        title: const Text('Flashcard Game', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -32,7 +32,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
             return Center(child: Text(state.message, style: const TextStyle(color: Colors.red)));
           }
           else if (state is LearningFinished) {
-            return _buildFinishedScreen();
+            return _buildFinishedScreen(context);
           }
           else if (state is LearningLoaded) {
             final currentCard = state.flashcards.first;
@@ -107,7 +107,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 ElevatedButton(
                   onPressed: () {
                     setState(() => isFlipped = false);
-                    context.read<LearningBloc>().add(AnswerFlashcard(card, true)); // true = Znam
+                    context.read<LearningBloc>().add(AnswerFlashcard(card, true));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
                   child: const Text('Znam', style: TextStyle(color: Colors.white)),
@@ -119,16 +119,25 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
     );
   }
 
-  Widget _buildFinishedScreen() {
+  Widget _buildFinishedScreen(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
-          SizedBox(height: 20),
-          Text('Koniec na dziś!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          SizedBox(height: 10),
-          Text('Wszystkie fiszki zostały powtórzone.', style: TextStyle(color: Colors.grey)),
+        children: [
+          const Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
+          const SizedBox(height: 20),
+          const Text('Koniec na dziś!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          const Text('Wszystkie fiszki zostały powtórzone.', style: TextStyle(color: Colors.grey)),
+
+          ElevatedButton(
+            onPressed: () => context.read<LearningBloc>().add(ResetDemo()),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)
+            ),
+            child: const Text('Zresetuj bazę (Demo)', style: TextStyle(color: Colors.white)),
+          ),
         ],
       ),
     );

@@ -37,11 +37,14 @@ class MyApp extends StatelessWidget {
         BlocProvider(
           create: (context) => LearningBloc(databaseService)..add(LoadFlashcardsForToday()),
         ),
+        BlocProvider(
+        create: (context) => AuthBloc()..add(AppStarted())
+        ),
       ],
       child: MaterialApp(
         title: 'Quizez',
         theme: ThemeData.light(),
-        home: const FlashcardsScreen(), // <- Flashcard screen
+        home: const AuthScreen(),
       ),
     );
   }
