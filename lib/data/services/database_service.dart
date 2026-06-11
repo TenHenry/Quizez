@@ -20,7 +20,7 @@ class DatabaseService {
     return Isar.getInstance()!;
   }
 
-  // --- ALGORYTM LEITNERA ---
+  // letiner algoritthm
   Future<void> updateFlashcardProgress(Flashcard card, bool isCorrect) async {
     final isar = await db;
 
@@ -47,7 +47,7 @@ class DatabaseService {
         .findAll();
   }
 
-  // --- TEST FLASHCARDS ---
+  // test flashcard
   Future<void> addDummyFlashcards() async {
     final isar = await db;
 
@@ -63,5 +63,14 @@ class DatabaseService {
       });
       print("Dodano testowe fiszki!");
     }
+  }
+
+  // Reset
+  Future<void> resetDemoData() async {
+    final isar = await db;
+    await isar.writeTxn(() async {
+      await isar.flashcards.clear();
+    });
+    await addDummyFlashcards();
   }
 }

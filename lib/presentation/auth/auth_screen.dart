@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../logic/auth/auth_bloc.dart';
 import '../../logic/auth/auth_state.dart';
+import '../learning/flashcards_screen.dart';
 import 'widgets/loading_view.dart';
 import 'widgets/login_form.dart';
 import 'widgets/register_form.dart';
@@ -25,6 +26,10 @@ class AuthScreen extends StatelessWidget {
               const SnackBar(content: Text('Zalogowano!'), backgroundColor: Colors.green),
             );
           }
+
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const FlashcardsScreen()),
+          );
         },
         builder: (context, state) {
           // Widget swap

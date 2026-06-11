@@ -10,6 +10,8 @@ abstract class LearningEvent extends Equatable {
 
 class LoadFlashcardsForToday extends LearningEvent {}
 
+class ResetDemo extends LearningEvent {}
+
 class AnswerFlashcard extends LearningEvent {
   final Flashcard flashcard;
   final bool isCorrect;

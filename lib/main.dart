@@ -44,7 +44,7 @@ class MyApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Quizez',
         theme: ThemeData.light(),
-        home: const FlashcardsScreen(), // <- Flashcard screen
+        home: const AuthScreen(),
       ),
     );
   }
