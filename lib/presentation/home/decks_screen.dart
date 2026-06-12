@@ -117,7 +117,7 @@ class _DecksScreenState extends State<DecksScreen> {
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FlashcardsScreen()));
               },
               icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('Rozpocznij naukę (20 kart)', style: TextStyle(color: Colors.white)),
+              label: const Text('Rozpocznij naukę', style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 14)),
             ),
             const SizedBox(height: 12),
@@ -144,6 +144,24 @@ class _DecksScreenState extends State<DecksScreen> {
         title: const Text('Twoje Talie', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.sync, color: Colors.black),
+            onPressed: () async {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Pobieranie bazy z chmury...')),
+              );
+
+              await context.read<DatabaseService>().syncFromSupabase();
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Zsynchronizowano pomyślnie!'), backgroundColor: Colors.green),
+                );
+              }
+            },
+          ),
+        ],
       ),
       body: _decks.isEmpty
           ? const Center(child: Text('Brak talii. Kliknij +, aby stworzyć nową!', style: TextStyle(color: Colors.grey)))

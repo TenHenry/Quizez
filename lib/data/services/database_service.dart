@@ -47,8 +47,29 @@ class DatabaseService {
         .deckIdEqualTo(deckId)
         .findAll();
 
-    allCards.shuffle();
-    return allCards.take(20).toList();
+    final box1 = allCards.where((c) => c.box == 1).toList()..shuffle();
+    final box2 = allCards.where((c) => c.box == 2).toList()..shuffle();
+    final box3Plus = allCards.where((c) => c.box >= 3).toList()..shuffle();
+
+    final sessionCards = <Flashcard>[];
+
+    sessionCards.addAll(box1.take(12));
+    sessionCards.addAll(box2.take(5));
+    sessionCards.addAll(box3Plus.take(3));
+
+    if (sessionCards.length < 20) {
+      final remainingCards = allCards
+          .where((c) => !sessionCards.contains(c))
+          .toList()
+        ..shuffle();
+
+      final missingCount = 20 - sessionCards.length;
+      sessionCards.addAll(remainingCards.take(missingCount));
+    }
+
+    sessionCards.shuffle();
+
+    return sessionCards;
   }
 
 
@@ -87,7 +108,6 @@ class DatabaseService {
     }
   }
 
-  // letiner algoritthm
   Future<void> updateFlashcardProgress(Flashcard card, bool isCorrect) async {
     final isar = await db;
     if (isCorrect) {
@@ -118,6 +138,39 @@ class DatabaseService {
       }
     } catch (e) {
       print("Błąd Supabase: $e");
+    }
+  }
+
+  Future<void> syncFromSupabase() async {
+    final isar = await db;
+    final userId = _supabase.auth.currentUser?.id;
+
+    if (userId == null) return;
+
+    try {
+      final response = await _supabase.from('flashcards').select().eq('user_id', userId);
+
+      final localCards = <Flashcard>[];
+
+      for (var row in response) {
+        localCards.add(
+            Flashcard()
+              ..id = row['id']
+              ..question = row['question']
+              ..answer = row['answer']
+              ..box = row['box']
+              ..nextReview = DateTime.parse(row['next_review'])
+              ..isDifficult = row['is_difficult'] ?? false
+              ..deckId = row['deck_id']
+        );
+      }
+
+      await isar.writeTxn(() async {
+        await isar.flashcards.putAll(localCards);
+      });
+
+    } catch (e) {
+      print("Błąd synchronizacji z Supabase: $e");
     }
   }
 }
