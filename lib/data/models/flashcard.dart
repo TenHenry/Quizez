@@ -13,4 +13,6 @@ class Flashcard {
   int box = 1;
   DateTime nextReview = DateTime.now();
   bool isDifficult = false;
+
+  int? deckId;
 }

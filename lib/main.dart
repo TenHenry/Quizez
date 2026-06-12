@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:quizez/presentation/home/main_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'logic/auth/auth_bloc.dart';
 import 'logic/auth/auth_event.dart';
+import 'logic/auth/auth_state.dart';
 import 'presentation/auth/auth_screen.dart';
 import 'data/services/database_service.dart';
 import 'logic/learning/learning_bloc.dart';
-import 'logic/learning/learning_event.dart';
-import 'presentation/learning/flashcards_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,7 +19,6 @@ Future<void> main() async {
   final databaseService = DatabaseService();
   await databaseService.db;
 
-  await databaseService.addDummyFlashcards();
 
   runApp(MyApp(databaseService: databaseService));
 }
@@ -32,19 +31,34 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) => LearningBloc(databaseService)..add(LoadFlashcardsForToday()),
+    return RepositoryProvider.value(
+      value: databaseService,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (context) => LearningBloc(databaseService),
+          ),
+          BlocProvider(
+          create: (context) => AuthBloc()..add(AppStarted())
+          ),
+        ],
+        child: MaterialApp(
+          title: 'Quizez',
+          theme: ThemeData.light(),
+          home: BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              if (state is Authenticated) {
+                return const MainScreen();
+              } else if (state is Unauthenticated || state is AuthFailure) {
+                return const AuthScreen();
+              }
+              return const Scaffold(
+                backgroundColor: Colors.white,
+                body: Center(child: CircularProgressIndicator(color: Colors.black)),
+              );
+            },
+          ),
         ),
-        BlocProvider(
-        create: (context) => AuthBloc()..add(AppStarted())
-        ),
-      ],
-      child: MaterialApp(
-        title: 'Quizez',
-        theme: ThemeData.light(),
-        home: const AuthScreen(),
       ),
     );
   }

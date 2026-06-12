@@ -11,6 +11,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ToggleAuthMode>(_onToggleAuthMode);
     on<LoginWithEmailPressed>(_onLoginWithEmailPressed);
     on<SignUpWithEmailPressed>(_onSignUpWithEmailPressed);
+    on<LogoutRequested>(_onLogoutRequested);
   }
 
 // Loading Screen
@@ -61,5 +62,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthFailure(e.toString()));
       emit(const Unauthenticated(isRegistering: true));
     }
+  }
+
+  Future<void> _onLogoutRequested(LogoutRequested event, Emitter<AuthState> emit) async {
+    await Supabase.instance.client.auth.signOut();
+    emit(const Unauthenticated(isRegistering: false));
   }
 }
