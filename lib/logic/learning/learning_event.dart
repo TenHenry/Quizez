@@ -8,7 +8,13 @@ abstract class LearningEvent extends Equatable {
   List<Object> get props => [];
 }
 
-class LoadFlashcardsForToday extends LearningEvent {}
+class LoadFlashcardsForToday extends LearningEvent {
+  final int deckId;
+  const LoadFlashcardsForToday(this.deckId);
+
+  @override
+  List<Object> get props => [deckId];
+}
 
 class ResetDemo extends LearningEvent {}
 

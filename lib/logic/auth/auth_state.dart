@@ -1,5 +1,7 @@
 import 'package:equatable/equatable.dart';
 
+import 'auth_event.dart';
+
 abstract class AuthState extends Equatable {
   const AuthState();
   @override
@@ -9,6 +11,8 @@ abstract class AuthState extends Equatable {
 class AuthInitial extends AuthState {}
 
 class AuthLoading extends AuthState {}
+
+class LogoutRequested extends AuthEvent {}
 
 // Pre-Login
 class Unauthenticated extends AuthState {

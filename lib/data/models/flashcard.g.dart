@@ -27,18 +27,23 @@ const FlashcardSchema = CollectionSchema(
       name: r'box',
       type: IsarType.long,
     ),
-    r'isDifficult': PropertySchema(
+    r'deckId': PropertySchema(
       id: 2,
+      name: r'deckId',
+      type: IsarType.long,
+    ),
+    r'isDifficult': PropertySchema(
+      id: 3,
       name: r'isDifficult',
       type: IsarType.bool,
     ),
     r'nextReview': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'nextReview',
       type: IsarType.dateTime,
     ),
     r'question': PropertySchema(
-      id: 4,
+      id: 5,
       name: r'question',
       type: IsarType.string,
     )
@@ -76,9 +81,10 @@ void _flashcardSerialize(
 ) {
   writer.writeString(offsets[0], object.answer);
   writer.writeLong(offsets[1], object.box);
-  writer.writeBool(offsets[2], object.isDifficult);
-  writer.writeDateTime(offsets[3], object.nextReview);
-  writer.writeString(offsets[4], object.question);
+  writer.writeLong(offsets[2], object.deckId);
+  writer.writeBool(offsets[3], object.isDifficult);
+  writer.writeDateTime(offsets[4], object.nextReview);
+  writer.writeString(offsets[5], object.question);
 }
 
 Flashcard _flashcardDeserialize(
@@ -90,10 +96,11 @@ Flashcard _flashcardDeserialize(
   final object = Flashcard();
   object.answer = reader.readString(offsets[0]);
   object.box = reader.readLong(offsets[1]);
+  object.deckId = reader.readLongOrNull(offsets[2]);
   object.id = id;
-  object.isDifficult = reader.readBool(offsets[2]);
-  object.nextReview = reader.readDateTime(offsets[3]);
-  object.question = reader.readString(offsets[4]);
+  object.isDifficult = reader.readBool(offsets[3]);
+  object.nextReview = reader.readDateTime(offsets[4]);
+  object.question = reader.readString(offsets[5]);
   return object;
 }
 
@@ -109,10 +116,12 @@ P _flashcardDeserializeProp<P>(
     case 1:
       return (reader.readLong(offset)) as P;
     case 2:
-      return (reader.readBool(offset)) as P;
+      return (reader.readLongOrNull(offset)) as P;
     case 3:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readBool(offset)) as P;
     case 4:
+      return (reader.readDateTime(offset)) as P;
+    case 5:
       return (reader.readString(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -385,6 +394,75 @@ extension FlashcardQueryFilter
     return QueryBuilder.apply(this, (query) {
       return query.addFilterCondition(FilterCondition.between(
         property: r'box',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdIsNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNull(
+        property: r'deckId',
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdIsNotNull() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(const FilterCondition.isNotNull(
+        property: r'deckId',
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdEqualTo(
+      int? value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'deckId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdGreaterThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'deckId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdLessThan(
+    int? value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'deckId',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterFilterCondition> deckIdBetween(
+    int? lower,
+    int? upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'deckId',
         lower: lower,
         includeLower: includeLower,
         upper: upper,
@@ -673,6 +751,18 @@ extension FlashcardQuerySortBy on QueryBuilder<Flashcard, Flashcard, QSortBy> {
     });
   }
 
+  QueryBuilder<Flashcard, Flashcard, QAfterSortBy> sortByDeckId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'deckId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterSortBy> sortByDeckIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'deckId', Sort.desc);
+    });
+  }
+
   QueryBuilder<Flashcard, Flashcard, QAfterSortBy> sortByIsDifficult() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'isDifficult', Sort.asc);
@@ -733,6 +823,18 @@ extension FlashcardQuerySortThenBy
   QueryBuilder<Flashcard, Flashcard, QAfterSortBy> thenByBoxDesc() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'box', Sort.desc);
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterSortBy> thenByDeckId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'deckId', Sort.asc);
+    });
+  }
+
+  QueryBuilder<Flashcard, Flashcard, QAfterSortBy> thenByDeckIdDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'deckId', Sort.desc);
     });
   }
 
@@ -800,6 +902,12 @@ extension FlashcardQueryWhereDistinct
     });
   }
 
+  QueryBuilder<Flashcard, Flashcard, QDistinct> distinctByDeckId() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'deckId');
+    });
+  }
+
   QueryBuilder<Flashcard, Flashcard, QDistinct> distinctByIsDifficult() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'isDifficult');
@@ -837,6 +945,12 @@ extension FlashcardQueryProperty
   QueryBuilder<Flashcard, int, QQueryOperations> boxProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'box');
+    });
+  }
+
+  QueryBuilder<Flashcard, int?, QQueryOperations> deckIdProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'deckId');
     });
   }
 

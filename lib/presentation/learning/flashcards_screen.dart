@@ -129,15 +129,6 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
           const Text('Koniec na dziś!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           const Text('Wszystkie fiszki zostały powtórzone.', style: TextStyle(color: Colors.grey)),
-
-          ElevatedButton(
-            onPressed: () => context.read<LearningBloc>().add(ResetDemo()),
-            style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)
-            ),
-            child: const Text('Zresetuj bazę (Demo)', style: TextStyle(color: Colors.white)),
-          ),
         ],
       ),
     );
