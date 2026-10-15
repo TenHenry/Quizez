@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -104,7 +105,7 @@ class DatabaseService {
         });
       }
     } catch (e) {
-      print("Nie udało się zapisać w Supabase: $e");
+      debugPrint("Nie udało się zapisać w Supabase: $e");
     }
   }
 
@@ -137,7 +138,7 @@ class DatabaseService {
         });
       }
     } catch (e) {
-      print("Błąd Supabase: $e");
+      debugPrint("Błąd Supabase: $e");
     }
   }
 
@@ -170,7 +171,7 @@ class DatabaseService {
       });
 
     } catch (e) {
-      print("Błąd synchronizacji z Supabase: $e");
+      debugPrint("Błąd synchronizacji z Supabase: $e");
     }
   }
 }
