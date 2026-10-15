@@ -25,6 +25,7 @@ class _DecksScreenState extends State<DecksScreen> {
   Future<void> _loadDecks() async {
     final databaseService = context.read<DatabaseService>();
     final decks = await databaseService.getAllDecks();
+    if (!mounted) return;
     setState(() {
       _decks = decks;
     });
@@ -48,8 +49,10 @@ class _DecksScreenState extends State<DecksScreen> {
           ElevatedButton(
             onPressed: () async {
               if (controller.text.isNotEmpty) {
-                await context.read<DatabaseService>().createNewDeck(controller.text);
-                Navigator.pop(dialogContext);
+                final navigator = Navigator.of(dialogContext);
+                final service = context.read<DatabaseService>();
+                await service.createNewDeck(controller.text);
+                navigator.pop();
                 _loadDecks();
               }
             },
@@ -82,12 +85,13 @@ class _DecksScreenState extends State<DecksScreen> {
           ElevatedButton(
             onPressed: () async {
               if (questionController.text.isNotEmpty && answerController.text.isNotEmpty) {
+                final navigator = Navigator.of(dialogContext);
                 await context.read<DatabaseService>().addNewFlashcard(
                   questionController.text,
                   answerController.text,
                   deck.id,
                 );
-                if (mounted) Navigator.pop(dialogContext);
+                navigator.pop();
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
@@ -153,6 +157,7 @@ class _DecksScreenState extends State<DecksScreen> {
               );
 
               await context.read<DatabaseService>().syncFromSupabase();
+              await _loadDecks();
 
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
