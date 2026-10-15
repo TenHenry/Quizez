@@ -8,21 +8,32 @@ abstract class LearningEvent extends Equatable {
   List<Object> get props => [];
 }
 
+/// Starts a study session for a deck. With [hardOnly] only cards marked as difficult are used.
 class LoadFlashcardsForToday extends LearningEvent {
-  final int deckId;
-  const LoadFlashcardsForToday(this.deckId);
+  final String deckUuid;
+  final bool hardOnly;
+  const LoadFlashcardsForToday(this.deckUuid, {this.hardOnly = false});
 
   @override
-  List<Object> get props => [deckId];
+  List<Object> get props => [deckUuid, hardOnly];
 }
 
-
-class AnswerFlashcard extends LearningEvent {
+/// The player rated the current card ("Know" / "Don't know").
+class AnswerCardEvent extends LearningEvent {
   final Flashcard flashcard;
   final bool isCorrect;
 
-  const AnswerFlashcard(this.flashcard, this.isCorrect);
+  const AnswerCardEvent(this.flashcard, this.isCorrect);
 
   @override
   List<Object> get props => [flashcard, isCorrect];
+}
+
+/// The player toggled the "difficult" flag of the current card during a session.
+class ToggleDifficultEvent extends LearningEvent {
+  final Flashcard flashcard;
+  const ToggleDifficultEvent(this.flashcard);
+
+  @override
+  List<Object> get props => [flashcard];
 }
