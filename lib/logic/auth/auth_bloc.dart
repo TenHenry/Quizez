@@ -57,6 +57,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         password: event.password,
         data: {'nickname': event.nickname},
       );
+      if (response.session == null) {
+        // Supabase wymaga potwierdzenia e-mail - brak sesji, więc nie wpuszczamy do aplikacji.
+        emit(const AuthFailure('Konto utworzone. Potwierdź adres e-mail i zaloguj się.'));
+        emit(const Unauthenticated(isRegistering: false));
+        return;
+      }
       emit(Authenticated(response.user!.id));
     } catch (e) {
       emit(AuthFailure(e.toString()));
