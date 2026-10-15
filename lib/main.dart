@@ -52,6 +52,10 @@ class MyApp extends StatelessWidget {
               _messengerKey.currentState?.showSnackBar(
                 SnackBar(content: Text(state.message), backgroundColor: Colors.red),
               );
+            } else if (state is AuthMessage) {
+              _messengerKey.currentState?.showSnackBar(
+                SnackBar(content: Text(state.message), backgroundColor: Colors.green),
+              );
             } else if (state is Authenticated) {
               syncService.requestSync(); // pull the user's data right after sign-in
             }
@@ -62,15 +66,8 @@ class MyApp extends StatelessWidget {
             theme: AppTheme.light,
             home: BlocBuilder<AuthBloc, AuthState>(
               builder: (context, state) {
-                if (state is Authenticated) {
-                  return const MainScreen();
-                } else if (state is Unauthenticated || state is AuthFailure) {
-                  return const AuthScreen();
-                }
-                return const Scaffold(
-                  backgroundColor: Colors.white,
-                  body: Center(child: CircularProgressIndicator(color: Colors.black)),
-                );
+                // Splash, forms and the loader all live inside AuthScreen so typed text survives errors.
+                return state is Authenticated ? const MainScreen() : const AuthScreen();
               },
             ),
           ),
