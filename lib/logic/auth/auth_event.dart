@@ -24,6 +24,8 @@ class SignUpWithEmailPressed extends AuthEvent {
   const SignUpWithEmailPressed(this.nickname, this.email, this.password);
 }
 
+class LogoutRequested extends AuthEvent {}
+
 // Other
 class GoogleSignInPressed extends AuthEvent {}
 class AppleSignInPressed extends AuthEvent {}
