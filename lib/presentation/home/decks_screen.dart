@@ -48,9 +48,11 @@ class _DecksScreenState extends State<DecksScreen> {
     });
   }
 
-  void _showAddDeckDialog() {
+  Future<void> _showAddDeckDialog() async {
+    // Controllers of dialogs are intentionally not disposed manually: the dialog is still animating out
+    // when showDialog completes, and disposing earlier causes "used after being disposed" errors.
     final controller = TextEditingController();
-    showDialog(
+    final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create a new deck', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -65,19 +67,19 @@ class _DecksScreenState extends State<DecksScreen> {
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isNotEmpty) {
-                final navigator = Navigator.of(dialogContext);
-                await _db.createNewDeck(controller.text);
-                navigator.pop();
-                _loadDecks();
-              }
+            // Closes the dialog right away; the (slower) save happens afterwards, so a second tap cannot pop another route.
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) Navigator.pop(dialogContext, controller.text.trim());
             },
             child: const Text('Create'),
           ),
         ],
       ),
-    ).then((_) => controller.dispose());
+    );
+    if (name == null) return;
+
+    await _db.createNewDeck(name);
+    _loadDecks();
   }
 
   Future<void> _openDeck(Deck deck) async {

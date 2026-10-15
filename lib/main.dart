@@ -57,6 +57,7 @@ class MyApp extends StatelessWidget {
                 SnackBar(content: Text(state.message), backgroundColor: Colors.green),
               );
             } else if (state is Authenticated) {
+              databaseService.db.ignore(); // open the user's local database right away so the first save is instant
               syncService.requestSync(); // pull the user's data right after sign-in
             }
           },

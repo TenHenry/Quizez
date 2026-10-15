@@ -70,7 +70,7 @@ class _LoginFormState extends State<LoginForm> {
           ),
         ],
       ),
-    ).then((_) => controller.dispose());
+    );
   }
 
   @override

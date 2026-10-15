@@ -101,8 +101,6 @@ class _DeckScreenState extends State<DeckScreen> {
 
     final question = questionController.text;
     final answer = answerController.text;
-    questionController.dispose();
-    answerController.dispose();
     if (saved != true) return;
 
     if (editing) {
@@ -157,7 +155,6 @@ class _DeckScreenState extends State<DeckScreen> {
         ],
       ),
     );
-    controller.dispose();
     if (text == null) return;
 
     final result = parseCards(text);
@@ -316,7 +313,6 @@ Future<String?> showRenameDeckDialog(BuildContext context, String currentName) a
       ],
     ),
   );
-  controller.dispose();
   return name;
 }
 
