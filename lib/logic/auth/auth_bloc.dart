@@ -43,7 +43,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       emit(Authenticated(response.user!.id));
     } catch (e) {
-      emit(AuthFailure(e.toString()));
+      emit(AuthFailure(_messageOf(e)));
       emit(const Unauthenticated(isRegistering: false));
     }
   }
@@ -59,13 +59,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
       if (response.session == null) {
         // Supabase wymaga potwierdzenia e-mail - brak sesji, więc nie wpuszczamy do aplikacji.
-        emit(const AuthFailure('Konto utworzone. Potwierdź adres e-mail i zaloguj się.'));
+        emit(const AuthFailure('Account created. Confirm your e-mail address, then sign in.'));
         emit(const Unauthenticated(isRegistering: false));
         return;
       }
       emit(Authenticated(response.user!.id));
     } catch (e) {
-      emit(AuthFailure(e.toString()));
+      emit(AuthFailure(_messageOf(e)));
       emit(const Unauthenticated(isRegistering: true));
     }
   }
@@ -74,4 +74,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await Supabase.instance.client.auth.signOut();
     emit(const Unauthenticated(isRegistering: false));
   }
+}
+/// User-friendly text for an auth error (Supabase errors carry a readable message).
+String _messageOf(Object error) {
+  if (error is AuthException) return error.message;
+  return 'Something went wrong. Check your connection and try again.';
 }

@@ -11,7 +11,7 @@ class SettingsScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Ustawienia', style: TextStyle(color: Colors.black)),
+        title: const Text('Settings', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
@@ -21,7 +21,7 @@ class SettingsScreen extends StatelessWidget {
             context.read<AuthBloc>().add(LogoutRequested());
           },
           icon: const Icon(Icons.logout, color: Colors.white),
-          label: const Text('Wyloguj się', style: TextStyle(color: Colors.white, fontSize: 16)),
+          label: const Text('Sign out', style: TextStyle(color: Colors.white, fontSize: 16)),
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.redAccent,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
