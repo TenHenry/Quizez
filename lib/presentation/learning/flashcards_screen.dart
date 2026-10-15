@@ -67,7 +67,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('Pudełko: ${card.box}', style: const TextStyle(color: Colors.grey)),
+                  Text('Box: ${card.box}', style: const TextStyle(color: Colors.grey)),
                   const SizedBox(height: 20),
                   Text(
                     card.question,
@@ -84,7 +84,7 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                       style: const TextStyle(fontSize: 20, color: Colors.blueGrey),
                     ),
                   ] else ...[
-                    const Text('(Naciśnij, aby odkryć)', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                    const Text('(Tap to reveal)', style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
                   ]
                 ],
               ),
@@ -99,18 +99,18 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
                 ElevatedButton(
                   onPressed: () {
                     setState(() => isFlipped = false);
-                    context.read<LearningBloc>().add(AnswerFlashcard(card, false));
+                    context.read<LearningBloc>().add(AnswerCardEvent(card, false));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
-                  child: const Text('Nie znam', style: TextStyle(color: Colors.white)),
+                  child: const Text("Don't know", style: TextStyle(color: Colors.white)),
                 ),
                 ElevatedButton(
                   onPressed: () {
                     setState(() => isFlipped = false);
-                    context.read<LearningBloc>().add(AnswerFlashcard(card, true));
+                    context.read<LearningBloc>().add(AnswerCardEvent(card, true));
                   },
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16)),
-                  child: const Text('Znam', style: TextStyle(color: Colors.white)),
+                  child: const Text('Know', style: TextStyle(color: Colors.white)),
                 ),
               ],
             )
@@ -126,9 +126,9 @@ class _FlashcardsScreenState extends State<FlashcardsScreen> {
         children: [
           const Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
           const SizedBox(height: 20),
-          const Text('Koniec na dziś!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text('Session complete!', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          const Text('Wszystkie fiszki zostały powtórzone.', style: TextStyle(color: Colors.grey)),
+          const Text('All cards have been reviewed.', style: TextStyle(color: Colors.grey)),
         ],
       ),
     );

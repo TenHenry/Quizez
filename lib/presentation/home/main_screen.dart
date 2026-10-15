@@ -47,12 +47,12 @@ class _MainScreenState extends State<MainScreen> {
           BottomNavigationBarItem(
             icon: Icon(Icons.play_circle_outline),
             activeIcon: Icon(Icons.play_circle_filled),
-            label: 'Fiszki',
+            label: 'Cards',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.settings_outlined),
             activeIcon: Icon(Icons.settings),
-            label: 'Ustawienia',
+            label: 'Settings',
           ),
         ],
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../logic/auth/auth_bloc.dart';
 import '../../../logic/auth/auth_event.dart';
+import '../../common/app_text_field.dart';
 
 class RegisterForm extends StatefulWidget {
   const RegisterForm({super.key});
@@ -25,24 +26,6 @@ class _RegisterFormState extends State<RegisterForm> {
     super.dispose();
   }
 
-  Widget _buildTextField(String hint, TextEditingController controller, {bool isPassword = false}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
-      child: TextField(
-        controller: controller,
-        obscureText: isPassword,
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(color: Colors.grey),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.grey.shade300)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.black, width: 2)),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
@@ -55,26 +38,25 @@ class _RegisterFormState extends State<RegisterForm> {
           const SizedBox(height: 30),
           const Text('Sign up', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.black)),
           const SizedBox(height: 24),
-          _buildTextField('nickname', _nicknameController),
-          _buildTextField('email', _emailController),
-          _buildTextField('password', _passwordController, isPassword: true),
-          _buildTextField('confirm password', _confirmPasswordController, isPassword: true),
+          AppTextField(hint: 'nickname', controller: _nicknameController),
+          AppTextField(hint: 'email', controller: _emailController, keyboardType: TextInputType.emailAddress),
+          AppTextField(hint: 'password', controller: _passwordController, isPassword: true),
+          AppTextField(hint: 'confirm password', controller: _confirmPasswordController, isPassword: true),
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
               if (_passwordController.text != _confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Hasła nie są identyczne!'), backgroundColor: Colors.red));
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match.'), backgroundColor: Colors.red));
                 return;
               }
               context.read<AuthBloc>().add(SignUpWithEmailPressed(_nicknameController.text, _emailController.text, _passwordController.text));
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            child: const Text('Sign', style: TextStyle(color: Colors.white, fontSize: 16)),
+            child: const Text('Sign up', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 20),
           TextButton(
             onPressed: () => context.read<AuthBloc>().add(ToggleAuthMode()),
-            child: const Text("Already have an account? Click HERE", style: TextStyle(color: Colors.grey)),
+            child: const Text('Already have an account? Sign in', style: TextStyle(color: Colors.grey)),
           ),
         ],
       ),

@@ -8,13 +8,13 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Ekran Główny', style: TextStyle(color: Colors.black)),
+        title: const Text('Home', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: const Center(
         child: Text(
-          'To DO.',
+          'Coming soon.',
           style: TextStyle(color: Colors.grey, fontSize: 16),
         ),
       ),

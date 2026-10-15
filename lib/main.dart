@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:quizez/presentation/home/main_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'core/theme/app_theme.dart';
 import 'logic/auth/auth_bloc.dart';
 import 'logic/auth/auth_event.dart';
 import 'logic/auth/auth_state.dart';
 import 'presentation/auth/auth_screen.dart';
 import 'data/services/database_service.dart';
+import 'data/services/sync_service.dart';
 import 'logic/learning/learning_bloc.dart';
 
 Future<void> main() async {
@@ -16,58 +18,61 @@ Future<void> main() async {
     anonKey: 'sb_publishable_ql2FSmF1BVuDOu-i-zNOzA_WDCon0_o',
   );
 
+  // The local database is opened lazily per signed-in user (see DatabaseService.db).
   final databaseService = DatabaseService();
-  await databaseService.db;
+  final syncService = SyncService(databaseService);
 
-
-  runApp(MyApp(databaseService: databaseService));
+  runApp(MyApp(databaseService: databaseService, syncService: syncService));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key,required this.databaseService});
+  const MyApp({super.key, required this.databaseService, required this.syncService});
 
   final DatabaseService databaseService;
+  final SyncService syncService;
 
-  // Pozwala pokazać SnackBar z błędem logowania niezależnie od tego, który ekran jest w drzewie.
+  // Lets us show a SnackBar with an auth error regardless of which screen is in the tree.
   static final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   Widget build(BuildContext context) {
-    return RepositoryProvider.value(
-      value: databaseService,
+    return MultiRepositoryProvider(
+      providers: [
+        RepositoryProvider.value(value: databaseService),
+        RepositoryProvider.value(value: syncService),
+      ],
       child: MultiBlocProvider(
         providers: [
-          BlocProvider(
-            create: (context) => LearningBloc(databaseService),
-          ),
-          BlocProvider(
-          create: (context) => AuthBloc()..add(AppStarted())
-          ),
+          BlocProvider(create: (context) => LearningBloc(databaseService)),
+          BlocProvider(create: (context) => AuthBloc()..add(AppStarted())),
         ],
         child: BlocListener<AuthBloc, AuthState>(
-          listenWhen: (_, current) => current is AuthFailure,
           listener: (context, state) {
-            _messengerKey.currentState?.showSnackBar(
-              SnackBar(content: Text((state as AuthFailure).message), backgroundColor: Colors.red),
-            );
+            if (state is AuthFailure) {
+              _messengerKey.currentState?.showSnackBar(
+                SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+              );
+            } else if (state is Authenticated) {
+              syncService.requestSync(); // pull the user's data right after sign-in
+            }
           },
           child: MaterialApp(
-          scaffoldMessengerKey: _messengerKey,
-          title: 'Quizez',
-          theme: ThemeData.light(),
-          home: BlocBuilder<AuthBloc, AuthState>(
-            builder: (context, state) {
-              if (state is Authenticated) {
-                return const MainScreen();
-              } else if (state is Unauthenticated || state is AuthFailure) {
-                return const AuthScreen();
-              }
-              return const Scaffold(
-                backgroundColor: Colors.white,
-                body: Center(child: CircularProgressIndicator(color: Colors.black)),
-              );
-            },
-          ),
+            scaffoldMessengerKey: _messengerKey,
+            title: 'Quizez',
+            theme: AppTheme.light,
+            home: BlocBuilder<AuthBloc, AuthState>(
+              builder: (context, state) {
+                if (state is Authenticated) {
+                  return const MainScreen();
+                } else if (state is Unauthenticated || state is AuthFailure) {
+                  return const AuthScreen();
+                }
+                return const Scaffold(
+                  backgroundColor: Colors.white,
+                  body: Center(child: CircularProgressIndicator(color: Colors.black)),
+                );
+              },
+            ),
           ),
         ),
       ),

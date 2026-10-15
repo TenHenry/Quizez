@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/deck.dart';
 import '../../data/services/database_service.dart';
+import '../../data/services/sync_service.dart';
 import '../../logic/learning/learning_bloc.dart';
 import '../../logic/learning/learning_event.dart';
 import '../learning/flashcards_screen.dart';
@@ -15,11 +16,25 @@ class DecksScreen extends StatefulWidget {
 
 class _DecksScreenState extends State<DecksScreen> {
   List<Deck> _decks = [];
+  late final SyncService _syncService;
 
   @override
   void initState() {
     super.initState();
+    _syncService = context.read<SyncService>();
     _loadDecks();
+    // Reload the list whenever a background synchronization finishes (e.g. data pulled after sign-in).
+    _syncService.isSyncing.addListener(_onSyncChanged);
+  }
+
+  @override
+  void dispose() {
+    _syncService.isSyncing.removeListener(_onSyncChanged);
+    super.dispose();
+  }
+
+  void _onSyncChanged() {
+    if (!_syncService.isSyncing.value && mounted) _loadDecks();
   }
 
   Future<void> _loadDecks() async {
@@ -36,19 +51,19 @@ class _DecksScreenState extends State<DecksScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Stwórz nową talię', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Create a new deck', style: TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
-          decoration: const InputDecoration(hintText: 'Nazwa talii, np. Anatomia, Historia...'),
+          decoration: const InputDecoration(hintText: 'Deck name, e.g. Anatomy, History...'),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Anuluj', style: TextStyle(color: Colors.grey)),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
-              if (controller.text.isNotEmpty) {
+              if (controller.text.trim().isNotEmpty) {
                 final navigator = Navigator.of(dialogContext);
                 final service = context.read<DatabaseService>();
                 await service.createNewDeck(controller.text);
@@ -56,8 +71,7 @@ class _DecksScreenState extends State<DecksScreen> {
                 _loadDecks();
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-            child: const Text('Stwórz', style: TextStyle(color: Colors.white)),
+            child: const Text('Create'),
           ),
         ],
       ),
@@ -71,31 +85,30 @@ class _DecksScreenState extends State<DecksScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Dodaj fiszkę do: ${deck.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text('Add a card to: ${deck.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: questionController, decoration: const InputDecoration(hintText: 'Pytanie...')),
+            TextField(controller: questionController, decoration: const InputDecoration(hintText: 'Question...')),
             const SizedBox(height: 12),
-            TextField(controller: answerController, decoration: const InputDecoration(hintText: 'Odpowiedź...')),
+            TextField(controller: answerController, decoration: const InputDecoration(hintText: 'Answer...')),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Anuluj', style: TextStyle(color: Colors.grey))),
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
           ElevatedButton(
             onPressed: () async {
-              if (questionController.text.isNotEmpty && answerController.text.isNotEmpty) {
+              if (questionController.text.trim().isNotEmpty && answerController.text.trim().isNotEmpty) {
                 final navigator = Navigator.of(dialogContext);
                 await context.read<DatabaseService>().addNewFlashcard(
-                  questionController.text,
-                  answerController.text,
-                  deck.id,
-                );
+                      questionController.text,
+                      answerController.text,
+                      deck.uuid,
+                    );
                 navigator.pop();
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-            child: const Text('Dodaj', style: TextStyle(color: Colors.white)),
+            child: const Text('Add'),
           ),
         ],
       ),
@@ -106,7 +119,7 @@ class _DecksScreenState extends State<DecksScreen> {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (context) => Padding(
+      builder: (sheetContext) => Padding(
         padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -116,23 +129,23 @@ class _DecksScreenState extends State<DecksScreen> {
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop(context);
-                context.read<LearningBloc>().add(LoadFlashcardsForToday(deck.id));
+                Navigator.pop(sheetContext);
+                context.read<LearningBloc>().add(LoadFlashcardsForToday(deck.uuid));
                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FlashcardsScreen()));
               },
-              icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('Rozpocznij naukę', style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, padding: const EdgeInsets.symmetric(vertical: 14)),
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Start learning'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             ),
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(sheetContext);
                 _showAddCardDialog(deck);
               },
               icon: const Icon(Icons.add, color: Colors.black),
-              label: const Text('Dodaj nową fiszkę', style: TextStyle(color: Colors.black)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], padding: const EdgeInsets.symmetric(vertical: 14), elevation: 0),
+              label: const Text('Add a new card', style: TextStyle(color: Colors.black)),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], elevation: 0),
             ),
           ],
         ),
@@ -140,63 +153,60 @@ class _DecksScreenState extends State<DecksScreen> {
     );
   }
 
+  Future<void> _syncNow() async {
+    final messenger = ScaffoldMessenger.of(context);
+    final syncService = context.read<SyncService>();
+    messenger.showSnackBar(const SnackBar(content: Text('Synchronizing...')));
+
+    final ok = await syncService.syncNow();
+    await _loadDecks();
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(ok ? 'Synchronized successfully!' : 'Synchronization failed. Changes will be sent when you are online.'),
+        backgroundColor: ok ? Colors.green : Colors.orange,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Twoje Talie', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('Your decks'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.sync, color: Colors.black),
-            onPressed: () async {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Pobieranie bazy z chmury...')),
-              );
-
-              await context.read<DatabaseService>().syncFromSupabase();
-              await _loadDecks();
-
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Zsynchronizowano pomyślnie!'), backgroundColor: Colors.green),
-                );
-              }
-            },
-          ),
+          IconButton(icon: const Icon(Icons.sync), onPressed: _syncNow),
         ],
       ),
       body: _decks.isEmpty
-          ? const Center(child: Text('Brak talii. Kliknij +, aby stworzyć nową!', style: TextStyle(color: Colors.grey)))
+          ? const Center(child: Text('No decks yet. Tap + to create one!', style: TextStyle(color: Colors.grey)))
           : ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _decks.length,
-        itemBuilder: (context, index) {
-          final deck = _decks[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            elevation: 2,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: () => _showDeckOptions(deck),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                leading: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.folder, color: Colors.white)),
-                title: Text(deck.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                subtitle: const Text('Kliknij, aby grać lub dodać karty', style: TextStyle(color: Colors.grey)),
-                trailing: const Icon(Icons.chevron_right),
-              ),
+              padding: const EdgeInsets.all(16),
+              itemCount: _decks.length,
+              itemBuilder: (context, index) {
+                final deck = _decks[index];
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  elevation: 2,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: () => _showDeckOptions(deck),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      leading: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.folder, color: Colors.white)),
+                      title: Text(deck.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      subtitle: const Text('Tap to study or add cards', style: TextStyle(color: Colors.grey)),
+                      trailing: const Icon(Icons.chevron_right),
+                    ),
+                  ),
+                );
+              },
             ),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _showAddDeckDialog,
-        backgroundColor: Colors.black,
-        child: const Icon(Icons.add, color: Colors.white),
+        child: const Icon(Icons.add),
       ),
     );
   }
