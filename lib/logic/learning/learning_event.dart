@@ -16,7 +16,6 @@ class LoadFlashcardsForToday extends LearningEvent {
   List<Object> get props => [deckId];
 }
 
-class ResetDemo extends LearningEvent {}
 
 class AnswerFlashcard extends LearningEvent {
   final Flashcard flashcard;
