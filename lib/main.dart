@@ -28,6 +28,8 @@ class MyApp extends StatelessWidget {
 
   final DatabaseService databaseService;
 
+  // Pozwala pokazać SnackBar z błędem logowania niezależnie od tego, który ekran jest w drzewie.
+  static final _messengerKey = GlobalKey<ScaffoldMessengerState>();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +44,15 @@ class MyApp extends StatelessWidget {
           create: (context) => AuthBloc()..add(AppStarted())
           ),
         ],
-        child: MaterialApp(
+        child: BlocListener<AuthBloc, AuthState>(
+          listenWhen: (_, current) => current is AuthFailure,
+          listener: (context, state) {
+            _messengerKey.currentState?.showSnackBar(
+              SnackBar(content: Text((state as AuthFailure).message), backgroundColor: Colors.red),
+            );
+          },
+          child: MaterialApp(
+          scaffoldMessengerKey: _messengerKey,
           title: 'Quizez',
           theme: ThemeData.light(),
           home: BlocBuilder<AuthBloc, AuthState>(
@@ -58,44 +68,8 @@ class MyApp extends StatelessWidget {
               );
             },
           ),
+          ),
         ),
-      ),
-    );
-  }
-}
-
-class HomePage extends StatefulWidget {
-  const HomePage({super.key});
-
-  @override
-  State<HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<HomePage> {
-  final _future = Supabase.instance.client
-      .from('todos')
-      .select();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: FutureBuilder(
-        future: _future,
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          final todos = snapshot.data!;
-          return ListView.builder(
-            itemCount: todos.length,
-            itemBuilder: ((context, index) {
-              final todo = todos[index];
-              return ListTile(
-                title: Text(todo['Quizez']),
-              );
-            }),
-          );
-        },
       ),
     );
   }
