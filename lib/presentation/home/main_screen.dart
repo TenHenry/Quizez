@@ -13,11 +13,25 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  /// Tells the Home screen to reload its numbers when the user comes back to it.
+  final _homeRefresh = ValueNotifier<int>(0);
+
+  late final List<Widget> _screens = [
+    HomeScreen(onOpenCards: () => _selectTab(1), refresh: _homeRefresh),
     const DecksScreen(),
     const SettingsScreen(),
   ];
+
+  void _selectTab(int index) {
+    setState(() => _currentIndex = index);
+    if (index == 0) _homeRefresh.value++;
+  }
+
+  @override
+  void dispose() {
+    _homeRefresh.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,11 +42,7 @@ class _MainScreenState extends State<MainScreen> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: _selectTab,
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey.shade400,
         showSelectedLabels: true,
