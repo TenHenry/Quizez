@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-
 abstract class AuthState extends Equatable {
   const AuthState();
   @override
@@ -10,7 +9,6 @@ abstract class AuthState extends Equatable {
 class AuthInitial extends AuthState {}
 
 class AuthLoading extends AuthState {}
-
 
 // Pre-Login
 class Unauthenticated extends AuthState {
@@ -30,10 +28,22 @@ class Authenticated extends AuthState {
   List<Object?> get props => [userId];
 }
 
+/// The user opened a password reset link and must now choose a new password.
+class PasswordRecovery extends AuthState {}
+
 // Error
 class AuthFailure extends AuthState {
   final String message;
   const AuthFailure(this.message);
+
+  @override
+  List<Object?> get props => [message];
+}
+
+/// Informational message (e.g. "reset link sent"); the bloc follows it with [Unauthenticated].
+class AuthMessage extends AuthState {
+  final String message;
+  const AuthMessage(this.message);
 
   @override
   List<Object?> get props => [message];
