@@ -1,17 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../logic/quiz/quiz_bloc.dart';
+import '../../logic/quiz/quiz_config.dart';
 import '../../logic/quiz/quiz_event.dart';
 import 'quiz_setup_screen.dart';
 
 /// Start of the Quiz mode: create a room or join one with a code.
 class QuizMenuView extends StatelessWidget {
-  const QuizMenuView({super.key});
+  const QuizMenuView({super.key, this.initialMode = QuizMode.multipleChoice});
+
+  final QuizMode initialMode;
 
   void _createRoom(BuildContext context) {
     final bloc = context.read<QuizBloc>();
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => BlocProvider.value(value: bloc, child: const QuizSetupScreen())),
+      MaterialPageRoute(builder: (_) => BlocProvider.value(value: bloc, child: QuizSetupScreen(initialMode: initialMode))),
     );
   }
 
@@ -53,12 +56,14 @@ class QuizMenuView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Icon(Icons.quiz, size: 72),
+          Icon(initialMode == QuizMode.closestMatch ? Icons.track_changes : Icons.quiz, size: 72),
           const SizedBox(height: 16),
           const Text('Play with friends', textAlign: TextAlign.center, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
-          const Text(
-            'Create a room and share its code, or join a friend\'s room.\nThe faster you answer correctly, the more points you get.',
+          Text(
+            initialMode == QuizMode.closestMatch
+                ? 'Create a room and share its code, or join a friend\'s room.\nDescribe terms in your own words - the closest to the real definition wins.'
+                : 'Create a room and share its code, or join a friend\'s room.\nThe faster you answer correctly, the more points you get.',
             textAlign: TextAlign.center,
             style: TextStyle(color: Colors.grey),
           ),

@@ -4,18 +4,24 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/services/database_service.dart';
 import '../../data/services/profile_service.dart';
 import '../../logic/quiz/quiz_bloc.dart';
+import '../../logic/quiz/quiz_config.dart';
 import '../../logic/quiz/quiz_event.dart';
 import '../../logic/quiz/quiz_state.dart';
 import 'quiz_finished_view.dart';
 import 'quiz_lobby_view.dart';
 import 'quiz_menu_view.dart';
 import 'quiz_question_view.dart';
+import 'quiz_term_results_view.dart';
+import 'quiz_term_view.dart';
 import 'quiz_reveal_view.dart';
 
-/// Entry point of the Quiz mode: owns the [QuizBloc] and shows the view for the current state
-/// (menu, lobby, question, answer, final ranking).
+/// Entry point of the multiplayer modes (Quiz and Closest Match): owns the [QuizBloc] and shows the view
+/// for the current state (menu, lobby, question or term, answer, final ranking).
+/// [initialMode] is the game type preselected when the host creates a room.
 class QuizScreen extends StatelessWidget {
-  const QuizScreen({super.key});
+  const QuizScreen({super.key, this.initialMode = QuizMode.multipleChoice});
+
+  final QuizMode initialMode;
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +30,15 @@ class QuizScreen extends StatelessWidget {
 
     return BlocProvider(
       create: (_) => QuizBloc(userId: userId, nickname: profile.nickname, database: context.read<DatabaseService>()),
-      child: const _QuizFlow(),
+      child: _QuizFlow(initialMode: initialMode),
     );
   }
 }
 
 class _QuizFlow extends StatelessWidget {
-  const _QuizFlow();
+  const _QuizFlow({required this.initialMode});
+
+  final QuizMode initialMode;
 
   Future<bool> _confirmLeave(BuildContext context) async {
     final leave = await showDialog<bool>(
@@ -80,7 +88,7 @@ class _QuizFlow extends StatelessWidget {
             }
           },
           child: Scaffold(
-            appBar: AppBar(title: const Text('Quiz')),
+            appBar: AppBar(title: Text(initialMode == QuizMode.closestMatch ? 'Closest Match' : 'Quiz')),
             body: SafeArea(child: _viewFor(state)),
           ),
         );
@@ -89,7 +97,7 @@ class _QuizFlow extends StatelessWidget {
   }
 
   Widget _viewFor(QuizState state) {
-    if (state is QuizMenu) return const QuizMenuView();
+    if (state is QuizMenu) return QuizMenuView(initialMode: initialMode);
     if (state is QuizConnecting) {
       return Center(
         child: Column(
@@ -105,6 +113,8 @@ class _QuizFlow extends StatelessWidget {
     if (state is QuizLobby) return QuizLobbyView(state: state);
     if (state is QuizQuestionActive) return QuizQuestionView(key: ValueKey(state.index), state: state);
     if (state is QuizReveal) return QuizRevealView(state: state);
+    if (state is QuizTermActive) return QuizTermView(key: ValueKey(state.index), state: state);
+    if (state is QuizTermResults) return QuizTermResultsView(state: state);
     if (state is QuizFinished) return QuizFinishedView(state: state);
     return const SizedBox.shrink();
   }
