@@ -37,6 +37,15 @@ class AnswerSelected extends QuizEvent {
   List<Object?> get props => [choice];
 }
 
+/// Closest Match: the player sends the description of the term.
+class SubmitTextRequested extends QuizEvent {
+  final String text;
+  const SubmitTextRequested(this.text);
+
+  @override
+  List<Object?> get props => [text];
+}
+
 class LeaveRoomRequested extends QuizEvent {}
 
 // ---- internal events (fired by the room connection and the host's timers)

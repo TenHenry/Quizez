@@ -31,7 +31,7 @@ class QuizRoomService {
   static const maxPlayers = 8;
 
   /// Game messages that are passed on through [messages].
-  static const events = ['start', 'question', 'answer', 'reveal', 'finished'];
+  static const events = ['start', 'question', 'answer', 'reveal', 'term', 'text', 'results', 'finished'];
 
   final String userId;
   final String nickname;
