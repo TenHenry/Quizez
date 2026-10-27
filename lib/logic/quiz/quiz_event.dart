@@ -46,6 +46,15 @@ class SubmitTextRequested extends QuizEvent {
   List<Object?> get props => [text];
 }
 
+/// The player sends an emote (an emoji bought in the shop) to the room.
+class SendEmoteRequested extends QuizEvent {
+  final String glyph;
+  const SendEmoteRequested(this.glyph);
+
+  @override
+  List<Object?> get props => [glyph];
+}
+
 class LeaveRoomRequested extends QuizEvent {}
 
 // ---- internal events (fired by the room connection and the host's timers)

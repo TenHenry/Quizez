@@ -85,7 +85,10 @@ class RankingEntry {
   /// Points gained in the round that was just played (0 on the final ranking).
   final int gained;
 
-  const RankingEntry({required this.playerId, required this.nickname, required this.score, this.gained = 0});
+  /// Emoji of the player's avatar (null = none).
+  final String? avatar;
+
+  const RankingEntry({required this.playerId, required this.nickname, required this.score, this.gained = 0, this.avatar});
 }
 
 /// The answer of the finished round and the scoreboard.
