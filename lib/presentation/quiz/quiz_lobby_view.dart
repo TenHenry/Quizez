@@ -46,8 +46,11 @@ class QuizLobbyView extends StatelessWidget {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: Colors.black,
-                        child: Text(player.nickname.isEmpty ? '?' : player.nickname[0].toUpperCase(), style: const TextStyle(color: Colors.white)),
+                        backgroundColor: player.avatar == null ? Colors.black : Colors.grey.shade200,
+                        child: Text(
+                          player.avatar ?? (player.nickname.isEmpty ? '?' : player.nickname[0].toUpperCase()),
+                          style: TextStyle(color: Colors.white, fontSize: player.avatar == null ? 16 : 22),
+                        ),
                       ),
                       title: Text(player.nickname),
                       trailing: player.isHost ? const Chip(label: Text('Host'), visualDensity: VisualDensity.compact) : null,

@@ -29,7 +29,7 @@ class Scoreboard extends StatelessWidget {
             dense: true,
             leading: Text(i < _medals.length ? _medals[i] : '${i + 1}.', style: const TextStyle(fontSize: 20)),
             title: Text(
-              isMe ? '${entry.nickname} (you)' : entry.nickname,
+              '${entry.avatar == null ? '' : '${entry.avatar} '}${isMe ? '${entry.nickname} (you)' : entry.nickname}',
               style: TextStyle(fontWeight: FontWeight.w600, color: isMe ? Colors.white : Colors.black),
             ),
             trailing: Row(

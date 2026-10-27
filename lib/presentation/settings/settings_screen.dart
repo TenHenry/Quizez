@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../core/validators.dart';
 import '../../data/services/profile_service.dart';
+import '../../data/services/rewards_service.dart';
+import '../rewards/shop_screen.dart';
 import '../../logic/auth/auth_bloc.dart';
 import '../../logic/auth/auth_event.dart';
 
@@ -83,10 +85,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(24),
         children: [
           Center(
-            child: CircleAvatar(
-              radius: 44,
-              backgroundColor: Colors.black,
-              child: Text(initial, style: const TextStyle(fontSize: 36, color: Colors.white, fontWeight: FontWeight.bold)),
+            child: ValueListenableBuilder<RewardsSnapshot?>(
+              valueListenable: context.read<RewardsService>().snapshot,
+              builder: (context, snapshot, _) {
+                final avatar = snapshot?.avatarGlyph;
+                return CircleAvatar(
+                  radius: 44,
+                  backgroundColor: avatar == null ? Colors.black : Colors.grey.shade200,
+                  child: Text(
+                    avatar ?? initial,
+                    style: TextStyle(fontSize: avatar == null ? 36 : 44, color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 16),
@@ -101,6 +112,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               title: const Text('Change nickname'),
               trailing: const Icon(Icons.chevron_right),
               onTap: _editNickname,
+            ),
+          ),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ListTile(
+              leading: const Icon(Icons.storefront_outlined),
+              title: const Text('Shop'),
+              subtitle: const Text('Avatars, win animations and emotes'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ShopScreen())),
             ),
           ),
           const SizedBox(height: 24),

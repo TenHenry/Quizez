@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/services/database_service.dart';
 import '../../data/services/profile_service.dart';
+import '../../data/services/rewards_service.dart';
 import '../../data/services/sync_service.dart';
 import '../../logic/home/learning_overview.dart';
 import '../../logic/learning/learning_bloc.dart';
 import '../../logic/learning/learning_event.dart';
 import '../learning/flashcards_screen.dart';
 import '../../logic/quiz/quiz_config.dart';
+import '../../logic/rewards/streak.dart';
+import '../rewards/rewards_card.dart';
 import '../daily/daily_quiz_screen.dart';
 import '../quiz/quiz_screen.dart';
 
@@ -30,6 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   late final SyncService _sync;
   final _profile = ProfileService();
   LearningOverview _overview = const LearningOverview.empty();
+  StreakInfo _streak = StreakInfo.none;
 
   @override
   void initState() {
@@ -54,8 +58,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _load() async {
     final overview = await _db.getOverview();
+    final logs = await _db.getAnswerLogs();
     if (!mounted) return;
-    setState(() => _overview = overview);
+    setState(() {
+      _overview = overview;
+      _streak = computeStreak(logs.map((l) => l.answeredAt));
+    });
+    context.read<RewardsService>().refresh();
   }
 
   Future<void> _startSession(String deckUuid) async {
@@ -83,6 +92,8 @@ class _HomeScreenState extends State<HomeScreen> {
             const Text('Ready to learn something new?', style: TextStyle(color: Colors.grey)),
             const SizedBox(height: 16),
             _buildContinueCard(),
+            const SizedBox(height: 16),
+            RewardsCard(streak: _streak),
             const SizedBox(height: 16),
             _buildProgressCard(),
             const SizedBox(height: 24),
@@ -114,7 +125,6 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'Same questions for everyone, once a day',
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const DailyQuizScreen())),
             ),
-            const _ModeTile(icon: Icons.local_fire_department, title: 'Streak & rewards', subtitle: 'Collect coins for your daily streak'),
           ],
         ),
       ),
