@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:isar/isar.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/answer_log.dart';
 import '../models/deck.dart';
 import '../models/flashcard.dart';
 import 'database_service.dart';
@@ -110,6 +111,26 @@ class SyncService {
       ]);
       await _markCardsSynced(isar, cards);
     }
+
+    // Answer logs are insert-only, so they are simply uploaded once.
+    final logs = await isar.answerLogs.filter().pendingSyncEqualTo(true).findAll();
+    if (logs.isNotEmpty) {
+      await _supabase.from('answer_log').upsert([
+        for (final l in logs)
+          {
+            'id': l.uuid,
+            'user_id': userId,
+            'source': l.source,
+            'category': l.category,
+            'correct': l.correct,
+            'answered_at': l.answeredAt.toIso8601String(),
+          },
+      ]);
+      for (final l in logs) {
+        l.pendingSync = false;
+      }
+      await isar.writeTxn(() => isar.answerLogs.putAll(logs));
+    }
   }
 
   /// Clears `pendingSync` only for records that were not modified again while the upload was running.
@@ -190,10 +211,26 @@ class SyncService {
       }
     }
 
-    if (decksToSave.isEmpty && cardsToSave.isEmpty) return;
+    // Answer logs from other devices that are missing here.
+    final remoteLogs = await _supabase.from('answer_log').select().eq('user_id', userId);
+    final knownLogs = (await isar.answerLogs.where().findAll()).map((l) => l.uuid).toSet();
+    final logsToSave = [
+      for (final row in remoteLogs)
+        if (!knownLogs.contains(row['id'] as String))
+          AnswerLog()
+            ..uuid = row['id'] as String
+            ..source = row['source'] as String
+            ..category = row['category'] as String
+            ..correct = row['correct'] == true
+            ..answeredAt = DateTime.parse(row['answered_at'] as String).toUtc()
+            ..pendingSync = false,
+    ];
+
+    if (decksToSave.isEmpty && cardsToSave.isEmpty && logsToSave.isEmpty) return;
     await isar.writeTxn(() async {
       await isar.decks.putAll(decksToSave);
       await isar.flashcards.putAll(cardsToSave);
+      await isar.answerLogs.putAll(logsToSave);
     });
   }
 }
