@@ -1,7 +1,10 @@
-// Supabase Edge Function: generates multiple-choice quiz questions with a free Gemini model.
+// Supabase Edge Function: generates quiz content with a free Gemini model.
 //
-// Request (POST, JSON, user must be signed in):  { "topic": "Human anatomy", "difficulty": 2, "count": 10 }
+// Request (POST, JSON, user must be signed in):
+//   { "topic": "Human anatomy", "difficulty": 2, "count": 10 }                  -> multiple-choice questions
+//   { "kind": "terms", "topic": "Human anatomy", "difficulty": 2, "count": 5 }   -> terms with definitions (Closest Match)
 // Response: { "questions": [ { "question", "options": [4 strings], "correct_index", "category", "difficulty" } ] }
+//        or { "terms": [ { "term", "definition", "category" } ] }
 //
 // Secrets (Supabase Dashboard -> Edge Functions -> Secrets, or `supabase secrets set`):
 //   GEMINI_API_KEY  - free key from https://aistudio.google.com/apikey
@@ -49,6 +52,26 @@ function validate(items: unknown, difficulty: number, topic: string): Question[]
   return result;
 }
 
+interface Term {
+  term: string;
+  definition: string;
+  category: string;
+}
+
+/** Keeps only terms that have a real definition. */
+function validateTerms(items: unknown, topic: string): Term[] {
+  if (!Array.isArray(items)) return [];
+  const result: Term[] = [];
+
+  for (const item of items) {
+    const term = typeof item?.term === "string" ? item.term.trim() : "";
+    const definition = typeof item?.definition === "string" ? item.definition.trim() : "";
+    if (!term || definition.length < 10) continue;
+    result.push({ term, definition, category: topic });
+  }
+  return result;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return reply({ error: "Use POST." }, 405);
@@ -56,7 +79,7 @@ Deno.serve(async (req) => {
   const apiKey = Deno.env.get("GEMINI_API_KEY");
   if (!apiKey) return reply({ error: "AI is not configured on the server (missing GEMINI_API_KEY)." }, 500);
 
-  let body: { topic?: unknown; difficulty?: unknown; count?: unknown };
+  let body: { kind?: unknown; topic?: unknown; difficulty?: unknown; count?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -68,7 +91,13 @@ Deno.serve(async (req) => {
   const count = Math.min(20, Math.max(1, Number(body.count) || 10));
   if (topic.length < 3) return reply({ error: "Describe the topic (at least 3 characters)." }, 400);
 
-  const prompt = `Write ${count} multiple-choice quiz questions in English about: "${topic}".
+  const wantTerms = body.kind === "terms";
+
+  const prompt = wantTerms
+    ? `Give ${count} different terms from the area: "${topic}" (difficulty: ${DIFFICULTY_NAMES[difficulty]}).
+For each term write a clear, accurate definition in English, 1-2 sentences, that does NOT contain the term itself.
+Return ONLY a JSON array, no text around it. Each item: {"term": string, "definition": string}.`
+    : `Write ${count} multiple-choice quiz questions in English about: "${topic}".
 Difficulty: ${DIFFICULTY_NAMES[difficulty]}.
 Rules:
 - exactly 4 distinct answer options per question, exactly one correct;
@@ -102,7 +131,15 @@ Return ONLY a JSON array, no text around it. Each item: {"question": string, "op
   try {
     const data = await response.json();
     const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "[]";
-    const questions = validate(JSON.parse(text), difficulty, topic);
+    const parsed = JSON.parse(text);
+
+    if (wantTerms) {
+      const terms = validateTerms(parsed, topic);
+      if (terms.length === 0) return reply({ error: "The AI did not return usable terms. Try again." }, 502);
+      return reply({ terms });
+    }
+
+    const questions = validate(parsed, difficulty, topic);
     if (questions.length === 0) return reply({ error: "The AI did not return usable questions. Try again." }, 502);
     return reply({ questions });
   } catch {
