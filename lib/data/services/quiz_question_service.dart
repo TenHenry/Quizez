@@ -44,6 +44,16 @@ class QuizQuestionService {
     }
   }
 
+  /// The whole question bank (used by the daily quiz, which picks its questions by the date).
+  Future<List<QuizQuestion>> allFromBank() async {
+    try {
+      final rows = await _client.from('quiz_questions').select();
+      return rows.map(QuizQuestion.tryParse).whereType<QuizQuestion>().toList();
+    } catch (_) {
+      throw const QuizException('Could not load questions. Is the quiz question bank set up in Supabase?');
+    }
+  }
+
   /// Categories of the "Closest Match" term bank (sorted).
   Future<List<String>> getTermCategories() async {
     try {
