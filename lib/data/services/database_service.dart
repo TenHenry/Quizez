@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import '../../logic/home/learning_overview.dart';
 import '../../logic/learning/leitner.dart';
 import '../models/deck.dart';
 import '../models/flashcard.dart';
@@ -124,6 +125,15 @@ class DatabaseService {
   }
 
   Future<DeckStats> getDeckStats(String deckUuid) async => DeckStats.fromCards(await getCards(deckUuid));
+
+  /// Totals over all decks for the Home screen.
+  Future<LearningOverview> getOverview() async {
+    final decks = await getAllDecks();
+    final entries = <DeckWithStats>[
+      for (final deck in decks) (deck: deck, stats: await getDeckStats(deck.uuid)),
+    ];
+    return LearningOverview.fromDecks(entries);
+  }
 
   // ---------------------------------------------------------------- flashcards
 
