@@ -50,7 +50,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       ),
     );
-    controller.dispose();
 
     if (newNickname == null || newNickname == _profile.nickname || !mounted) return;
 

@@ -3,9 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../data/models/deck.dart';
 import '../../data/services/database_service.dart';
 import '../../data/services/sync_service.dart';
-import '../../logic/learning/learning_bloc.dart';
-import '../../logic/learning/learning_event.dart';
-import '../learning/flashcards_screen.dart';
+import 'deck_screen.dart';
 
 class DecksScreen extends StatefulWidget {
   const DecksScreen({super.key});
@@ -15,12 +13,15 @@ class DecksScreen extends StatefulWidget {
 }
 
 class _DecksScreenState extends State<DecksScreen> {
-  List<Deck> _decks = [];
+  late final DatabaseService _db;
   late final SyncService _syncService;
+  List<Deck> _decks = [];
+  Map<String, DeckStats> _stats = {};
 
   @override
   void initState() {
     super.initState();
+    _db = context.read<DatabaseService>();
     _syncService = context.read<SyncService>();
     _loadDecks();
     // Reload the list whenever a background synchronization finishes (e.g. data pulled after sign-in).
@@ -38,22 +39,26 @@ class _DecksScreenState extends State<DecksScreen> {
   }
 
   Future<void> _loadDecks() async {
-    final databaseService = context.read<DatabaseService>();
-    final decks = await databaseService.getAllDecks();
+    final decks = await _db.getAllDecks();
+    final stats = {for (final deck in decks) deck.uuid: await _db.getDeckStats(deck.uuid)};
     if (!mounted) return;
     setState(() {
       _decks = decks;
+      _stats = stats;
     });
   }
 
-  void _showAddDeckDialog() {
+  Future<void> _showAddDeckDialog() async {
+    // Controllers of dialogs are intentionally not disposed manually: the dialog is still animating out
+    // when showDialog completes, and disposing earlier causes "used after being disposed" errors.
     final controller = TextEditingController();
-    showDialog(
+    final name = await showDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create a new deck', style: TextStyle(fontWeight: FontWeight.bold)),
         content: TextField(
           controller: controller,
+          autofocus: true,
           decoration: const InputDecoration(hintText: 'Deck name, e.g. Anatomy, History...'),
         ),
         actions: [
@@ -62,103 +67,62 @@ class _DecksScreenState extends State<DecksScreen> {
             child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
-            onPressed: () async {
-              if (controller.text.trim().isNotEmpty) {
-                final navigator = Navigator.of(dialogContext);
-                final service = context.read<DatabaseService>();
-                await service.createNewDeck(controller.text);
-                navigator.pop();
-                _loadDecks();
-              }
+            // Closes the dialog right away; the (slower) save happens afterwards, so a second tap cannot pop another route.
+            onPressed: () {
+              if (controller.text.trim().isNotEmpty) Navigator.pop(dialogContext, controller.text.trim());
             },
             child: const Text('Create'),
           ),
         ],
       ),
     );
+    if (name == null) return;
+
+    await _db.createNewDeck(name);
+    _loadDecks();
   }
 
-  void _showAddCardDialog(Deck deck) {
-    final questionController = TextEditingController();
-    final answerController = TextEditingController();
+  Future<void> _openDeck(Deck deck) async {
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => DeckScreen(deck: deck)));
+    if (mounted) _loadDecks();
+  }
 
-    showDialog(
+  Future<void> _renameDeck(Deck deck) async {
+    final name = await showRenameDeckDialog(context, deck.name);
+    if (name == null) return;
+    await _db.renameDeck(deck, name);
+    _loadDecks();
+  }
+
+  Future<void> _deleteDeck(Deck deck) async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('Add a card to: ${deck.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: questionController, decoration: const InputDecoration(hintText: 'Question...')),
-            const SizedBox(height: 12),
-            TextField(controller: answerController, decoration: const InputDecoration(hintText: 'Answer...')),
-          ],
-        ),
+        title: Text('Delete deck "${deck.name}"?', style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('The deck and all its cards will be removed.'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel', style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
           ElevatedButton(
-            onPressed: () async {
-              if (questionController.text.trim().isNotEmpty && answerController.text.trim().isNotEmpty) {
-                final navigator = Navigator.of(dialogContext);
-                await context.read<DatabaseService>().addNewFlashcard(
-                      questionController.text,
-                      answerController.text,
-                      deck.uuid,
-                    );
-                navigator.pop();
-              }
-            },
-            child: const Text('Add'),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
           ),
         ],
       ),
     );
-  }
-
-  void _showDeckOptions(Deck deck) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(deck.name, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(sheetContext);
-                context.read<LearningBloc>().add(LoadFlashcardsForToday(deck.uuid));
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FlashcardsScreen()));
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('Start learning'),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-            ),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(sheetContext);
-                _showAddCardDialog(deck);
-              },
-              icon: const Icon(Icons.add, color: Colors.black),
-              label: const Text('Add a new card', style: TextStyle(color: Colors.black)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], elevation: 0),
-            ),
-          ],
-        ),
-      ),
-    );
+    if (confirmed != true) return;
+    await _db.deleteDeck(deck);
+    _loadDecks();
   }
 
   Future<void> _syncNow() async {
     final messenger = ScaffoldMessenger.of(context);
-    final syncService = context.read<SyncService>();
     messenger.showSnackBar(const SnackBar(content: Text('Synchronizing...')));
 
-    final ok = await syncService.syncNow();
+    final ok = await _syncService.syncNow();
     await _loadDecks();
 
     messenger.hideCurrentSnackBar();
@@ -168,6 +132,13 @@ class _DecksScreenState extends State<DecksScreen> {
         backgroundColor: ok ? Colors.green : Colors.orange,
       ),
     );
+  }
+
+  String _subtitle(Deck deck) {
+    final stats = _stats[deck.uuid];
+    if (stats == null) return '';
+    final cards = '${stats.total} ${stats.total == 1 ? 'card' : 'cards'}';
+    return stats.difficult > 0 ? '$cards · ${stats.difficult} difficult' : cards;
   }
 
   @override
@@ -192,13 +163,19 @@ class _DecksScreenState extends State<DecksScreen> {
                   elevation: 2,
                   child: InkWell(
                     borderRadius: BorderRadius.circular(16),
-                    onTap: () => _showDeckOptions(deck),
+                    onTap: () => _openDeck(deck),
                     child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      contentPadding: const EdgeInsets.only(left: 20, right: 8, top: 12, bottom: 12),
                       leading: const CircleAvatar(backgroundColor: Colors.black, child: Icon(Icons.folder, color: Colors.white)),
                       title: Text(deck.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      subtitle: const Text('Tap to study or add cards', style: TextStyle(color: Colors.grey)),
-                      trailing: const Icon(Icons.chevron_right),
+                      subtitle: Text(_subtitle(deck), style: const TextStyle(color: Colors.grey)),
+                      trailing: PopupMenuButton<String>(
+                        onSelected: (value) => value == 'rename' ? _renameDeck(deck) : _deleteDeck(deck),
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'rename', child: Text('Rename')),
+                          PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                        ],
+                      ),
                     ),
                   ),
                 );

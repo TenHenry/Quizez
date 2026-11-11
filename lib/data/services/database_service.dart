@@ -6,11 +6,23 @@ import '../../logic/learning/leitner.dart';
 import '../models/deck.dart';
 import '../models/flashcard.dart';
 
-/// Summary of one deck shown on the deck list.
+/// Summary of one deck: number of cards, difficult cards and cards per Leitner box.
 class DeckStats {
   final int total;
   final int difficult;
-  const DeckStats({required this.total, required this.difficult});
+
+  /// Cards in box 1..5 (index 0 = box 1).
+  final List<int> perBox;
+
+  const DeckStats({required this.total, required this.difficult, required this.perBox});
+
+  factory DeckStats.fromCards(List<Flashcard> cards) {
+    final perBox = List.filled(maxBox, 0);
+    for (final card in cards) {
+      perBox[(card.box.clamp(1, maxBox)) - 1]++;
+    }
+    return DeckStats(total: cards.length, difficult: cards.where((c) => c.isDifficult).length, perBox: perBox);
+  }
 }
 
 /// Local (Isar) storage. Every signed-in user gets a separate database, so accounts never see each other's data.
@@ -111,13 +123,7 @@ class DatabaseService {
     onLocalChange?.call();
   }
 
-  Future<DeckStats> getDeckStats(String deckUuid) async {
-    final isar = await db;
-    final cards = isar.flashcards.filter().deckUuidEqualTo(deckUuid).deletedEqualTo(false);
-    final total = await cards.count();
-    final difficult = await cards.isDifficultEqualTo(true).count();
-    return DeckStats(total: total, difficult: difficult);
-  }
+  Future<DeckStats> getDeckStats(String deckUuid) async => DeckStats.fromCards(await getCards(deckUuid));
 
   // ---------------------------------------------------------------- flashcards
 
