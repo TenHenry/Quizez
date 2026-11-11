@@ -114,6 +114,91 @@ class QuizReveal extends QuizState {
   List<Object?> get props => [index, selected, ranking.map((r) => '${r.playerId}:${r.score}').toList()];
 }
 
+/// Closest Match: a term to describe in your own words.
+class QuizTermActive extends QuizState {
+  final int index;
+  final int total;
+  final String term;
+  final String category;
+  final int seconds;
+  final DateTime receivedAt;
+
+  /// What this player sent (null = nothing sent yet).
+  final String? submitted;
+
+  const QuizTermActive({
+    required this.index,
+    required this.total,
+    required this.term,
+    required this.category,
+    required this.seconds,
+    required this.receivedAt,
+    this.submitted,
+  });
+
+  QuizTermActive withSubmitted(String text) => QuizTermActive(
+        index: index,
+        total: total,
+        term: term,
+        category: category,
+        seconds: seconds,
+        receivedAt: receivedAt,
+        submitted: text,
+      );
+
+  @override
+  List<Object?> get props => [index, submitted, receivedAt];
+}
+
+/// One player's description in the results of a Closest Match round.
+class TermResultEntry {
+  final String playerId;
+  final String nickname;
+  final String text;
+
+  /// 0-100 (how close the description is to the reference definition).
+  final int closenessPercent;
+  final int rank;
+  final int points;
+
+  const TermResultEntry({
+    required this.playerId,
+    required this.nickname,
+    required this.text,
+    required this.closenessPercent,
+    required this.rank,
+    required this.points,
+  });
+}
+
+/// Closest Match: the reference definition, the players' descriptions with their places, and the scoreboard.
+class QuizTermResults extends QuizState {
+  final int index;
+  final int total;
+  final String term;
+  final String definition;
+  final List<TermResultEntry> entries;
+  final List<RankingEntry> ranking;
+  final bool isLast;
+
+  /// Set when the descriptions could not be compared (then only the speed decided).
+  final String? note;
+
+  const QuizTermResults({
+    required this.index,
+    required this.total,
+    required this.term,
+    required this.definition,
+    required this.entries,
+    required this.ranking,
+    required this.isLast,
+    this.note,
+  });
+
+  @override
+  List<Object?> get props => [index, entries.map((e) => '${e.playerId}:${e.points}').toList()];
+}
+
 class QuizFinished extends QuizState {
   final List<RankingEntry> ranking;
   const QuizFinished(this.ranking);

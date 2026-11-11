@@ -7,6 +7,9 @@ import '../../data/models/quiz_question.dart';
 import '../../data/services/database_service.dart';
 import '../../data/services/quiz_question_service.dart';
 import '../../data/services/quiz_room_service.dart';
+import '../closest_match/closest_match_game.dart';
+import '../closest_match/closest_match_scorer.dart';
+import '../../data/models/game_term.dart';
 import 'quiz_config.dart';
 import 'quiz_event.dart';
 import 'quiz_game.dart';
@@ -17,8 +20,14 @@ import 'quiz_state.dart';
 /// Every device shows the game from the messages it receives. The host's device additionally runs the [QuizGame]:
 /// it sends the questions, collects the answers, scores them and sends the results back.
 class QuizBloc extends Bloc<QuizEvent, QuizState> {
-  QuizBloc({required this.userId, required this.nickname, DatabaseService? database, QuizQuestionService? questionService})
-      : _database = database,
+  QuizBloc({
+    required this.userId,
+    required this.nickname,
+    DatabaseService? database,
+    QuizQuestionService? questionService,
+    ClosestMatchScorer? scorer,
+  })  : _database = database,
+        _scorer = scorer ?? ClosestMatchScorer(),
         _questionService = questionService ?? QuizQuestionService(),
         super(const QuizMenu()) {
     on<CreateRoomRequested>(_onCreateRoom);
@@ -30,11 +39,13 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     on<MessageReceived>(_onMessage);
     on<RoundTimedOut>(_onRoundTimedOut);
     on<AdvanceRequested>(_onAdvance);
+    on<SubmitTextRequested>(_onSubmitText);
   }
 
   final String userId;
   final String nickname;
   final QuizQuestionService _questionService;
+  final ClosestMatchScorer _scorer;
 
   /// Where answers are logged for the statistics (null = not logged).
   final DatabaseService? _database;
@@ -51,6 +62,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   QuizGame? _game;
   Timer? _timer;
   bool _roundOpen = false;
+  ClosestMatchGame? _termGame; // Closest Match mode (host only)
 
   /// Nicknames of everybody who was in the room (kept after a player leaves, for the scoreboard).
   final Map<String, String> _names = {};
@@ -154,7 +166,11 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         return;
       }
       emit(QuizLobby(code: current.code, players: event.players, isHost: current.isHost, error: current.error));
-    } else if (current is QuizQuestionActive || current is QuizReveal || current is QuizConnecting) {
+    } else if (current is QuizQuestionActive ||
+        current is QuizReveal ||
+        current is QuizTermActive ||
+        current is QuizTermResults ||
+        current is QuizConnecting) {
       if (!_isHost && event.players.isNotEmpty && !hostPresent) {
         _abort(emit, 'The host left the game.');
       }
@@ -167,6 +183,11 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     final config = _config;
     if (!_isHost || current is! QuizLobby || room == null || config == null) return;
     if (current.players.length < QuizConfig.minPlayers) return;
+
+    if (config.mode == QuizMode.closestMatch) {
+      await _startClosestMatch(emit, current, room, config);
+      return;
+    }
 
     emit(const QuizConnecting('Preparing questions...'));
 
@@ -190,7 +211,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       secondsPerQuestion: config.secondsPerQuestion,
       players: current.players.map((p) => p.id),
     );
-    await room.send('start', {'total': questions.length});
+    await room.send('start', {'mode': 'quiz', 'total': questions.length});
     _timer = Timer(const Duration(seconds: 3), () => add(AdvanceRequested()));
   }
 
@@ -199,6 +220,11 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   Future<void> _onAdvance(AdvanceRequested event, Emitter<QuizState> emit) async {
     final game = _game;
     final room = _room;
+    final termGame = _termGame;
+    if (_isHost && termGame != null && room != null) {
+      await _advanceClosestMatch(termGame, room);
+      return;
+    }
     if (!_isHost || game == null || room == null) return;
 
     if (!game.hasNext) {
@@ -223,6 +249,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
   Future<void> _onRoundTimedOut(RoundTimedOut event, Emitter<QuizState> emit) async {
     if (_game?.index == event.index) await _endRound();
+    if (_termGame?.index == event.index) await _endTermRound();
   }
 
   /// Host: scores the round and tells everybody the correct answer.
@@ -298,6 +325,56 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
           isLast: data['last'] == true,
         ));
 
+      case 'term':
+        emit(QuizTermActive(
+          index: data['index'] as int,
+          total: data['total'] as int,
+          term: data['term'] as String,
+          category: data['category'] as String? ?? '',
+          seconds: data['seconds'] as int,
+          receivedAt: DateTime.now(),
+        ));
+
+      case 'text':
+        final termGame = _termGame;
+        if (!_isHost || termGame == null || !_roundOpen) return;
+        termGame.submitText(
+          playerId: data['playerId'] as String,
+          roundIndex: data['index'] as int,
+          text: data['text'] as String,
+          elapsedMs: data['elapsedMs'] as int,
+        );
+        final present = _room?.players.map((p) => p.id).toList() ?? const <String>[];
+        if (present.isNotEmpty && termGame.allSubmitted(present)) await _endTermRound();
+
+      case 'results':
+        final scores = _intMap(data['scores']);
+        final points = <String, int>{};
+        final entries = <TermResultEntry>[];
+        for (final item in data['entries'] as List) {
+          final map = Map<String, dynamic>.from(item as Map);
+          final id = map['id'] as String;
+          points[id] = (map['points'] as num).toInt();
+          entries.add(TermResultEntry(
+            playerId: id,
+            nickname: _names[id] ?? 'Player',
+            text: map['text'] as String,
+            closenessPercent: ((map['similarity'] as num).toDouble() * 100).round().clamp(0, 100),
+            rank: (map['rank'] as num).toInt(),
+            points: points[id]!,
+          ));
+        }
+        emit(QuizTermResults(
+          index: data['index'] as int,
+          total: data['total'] as int,
+          term: data['term'] as String,
+          definition: data['definition'] as String,
+          entries: entries,
+          ranking: _ranking(scores, points),
+          isLast: data['last'] == true,
+          note: data['note'] as String?,
+        ));
+
       case 'finished':
         _timer?.cancel();
         emit(QuizFinished(_ranking(_intMap(data['scores']), const {})));
@@ -318,6 +395,103 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     });
   }
 
+  // ---------------------------------------------------------------- Closest Match
+
+  Future<void> _startClosestMatch(Emitter<QuizState> emit, QuizLobby lobby, QuizRoomService room, QuizConfig config) async {
+    emit(const QuizConnecting('Preparing terms...'));
+
+    final List<GameTerm> terms;
+    try {
+      terms = config.source == QuizSource.ai
+          ? await _questionService.generateTermsWithAi(topic: config.topic, difficulty: config.difficulty == 0 ? 2 : config.difficulty, count: config.questionCount)
+          : await _questionService.termsFromBank(category: config.category, count: config.questionCount);
+    } catch (e) {
+      emit(QuizLobby(code: lobby.code, players: lobby.players, isHost: true, error: e.toString()));
+      return;
+    }
+
+    await room.markStarted();
+    _termGame = ClosestMatchGame(
+      terms: terms,
+      secondsPerRound: config.secondsPerQuestion,
+      players: lobby.players.map((p) => p.id),
+    );
+    await room.send('start', {'mode': 'closest', 'total': terms.length});
+    _timer = Timer(const Duration(seconds: 3), () => add(AdvanceRequested()));
+  }
+
+  Future<void> _advanceClosestMatch(ClosestMatchGame game, QuizRoomService room) async {
+    if (!game.hasNext) {
+      await room.send('finished', {'scores': game.scores});
+      return;
+    }
+
+    final term = game.nextTerm();
+    _roundOpen = true;
+    await room.send('term', {
+      'index': game.index,
+      'total': game.total,
+      'term': term.term,
+      'category': term.category ?? '',
+      'seconds': game.secondsPerRound,
+    });
+
+    final index = game.index;
+    _timer = Timer(Duration(seconds: game.secondsPerRound + 3), () => add(RoundTimedOut(index)));
+  }
+
+  /// Host: compares the descriptions with the reference definition, ranks them and tells everybody.
+  Future<void> _endTermRound() async {
+    final game = _termGame;
+    final room = _room;
+    if (game == null || room == null || !_roundOpen) return;
+
+    _roundOpen = false;
+    _timer?.cancel();
+
+    final texts = game.submittedTexts;
+    var similarities = <String, double>{};
+    String? note;
+    if (texts.isNotEmpty) {
+      try {
+        final scores = await _scorer.score(reference: game.current.definition, answers: texts);
+        similarities = {for (final s in scores) s.playerId: s.similarity};
+      } catch (e) {
+        note = 'The descriptions could not be compared ($e). Faster answers ranked higher.';
+      }
+    }
+
+    final result = game.finishRound(similarities);
+    await room.send('results', {
+      'index': game.index,
+      'total': game.total,
+      'term': game.current.term,
+      'definition': result.definition,
+      'entries': [
+        for (final r in result.results)
+          {'id': r.playerId, 'text': r.text, 'similarity': r.similarity, 'rank': r.rank, 'points': r.points},
+      ],
+      'scores': result.scores,
+      'last': !game.hasNext,
+      'note': note,
+    });
+    _timer = Timer(const Duration(seconds: 10), () => add(AdvanceRequested()));
+  }
+
+  void _onSubmitText(SubmitTextRequested event, Emitter<QuizState> emit) {
+    final current = state;
+    final text = event.text.trim();
+    if (current is! QuizTermActive || current.submitted != null || text.isEmpty) return;
+
+    emit(current.withSubmitted(text));
+    _room?.send('text', {
+      'playerId': userId,
+      'index': current.index,
+      'text': text,
+      'elapsedMs': DateTime.now().difference(current.receivedAt).inMilliseconds,
+    });
+  }
+
   // ---------------------------------------------------------------- leaving
 
   Future<void> _onLeave(LeaveRoomRequested event, Emitter<QuizState> emit) async {
@@ -334,6 +508,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     _timer?.cancel();
     _roundOpen = false;
     _game = null;
+    _termGame = null;
     await _playersSub?.cancel();
     await _messagesSub?.cancel();
     _playersSub = null;

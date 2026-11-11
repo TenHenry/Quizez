@@ -7,6 +7,7 @@ import '../../logic/home/learning_overview.dart';
 import '../../logic/learning/learning_bloc.dart';
 import '../../logic/learning/learning_event.dart';
 import '../learning/flashcards_screen.dart';
+import '../../logic/quiz/quiz_config.dart';
 import '../quiz/quiz_screen.dart';
 
 /// Start page: progress summary, "continue learning" shortcut and the list of game modes.
@@ -98,7 +99,14 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'Play with friends, questions from a bank or AI',
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const QuizScreen())),
             ),
-            const _ModeTile(icon: Icons.track_changes, title: 'Closest Match', subtitle: 'Describe the term in your own words'),
+            _ModeTile(
+              icon: Icons.track_changes,
+              title: 'Closest Match',
+              subtitle: 'Describe the term in your own words',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QuizScreen(initialMode: QuizMode.closestMatch)),
+              ),
+            ),
             const _ModeTile(icon: Icons.emoji_events, title: 'Daily quiz & ranking', subtitle: 'Compete for a place in the daily ranking'),
             const _ModeTile(icon: Icons.local_fire_department, title: 'Streak & rewards', subtitle: 'Collect coins for your daily streak'),
           ],
