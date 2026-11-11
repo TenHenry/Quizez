@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
+import '../../data/models/answer_log.dart';
 import '../../data/models/quiz_question.dart';
+import '../../data/services/database_service.dart';
 import '../../data/services/quiz_question_service.dart';
 import '../../data/services/quiz_room_service.dart';
 import 'quiz_config.dart';
@@ -14,8 +17,9 @@ import 'quiz_state.dart';
 /// Every device shows the game from the messages it receives. The host's device additionally runs the [QuizGame]:
 /// it sends the questions, collects the answers, scores them and sends the results back.
 class QuizBloc extends Bloc<QuizEvent, QuizState> {
-  QuizBloc({required this.userId, required this.nickname, QuizQuestionService? questionService})
-      : _questionService = questionService ?? QuizQuestionService(),
+  QuizBloc({required this.userId, required this.nickname, DatabaseService? database, QuizQuestionService? questionService})
+      : _database = database,
+        _questionService = questionService ?? QuizQuestionService(),
         super(const QuizMenu()) {
     on<CreateRoomRequested>(_onCreateRoom);
     on<JoinRoomRequested>(_onJoinRoom);
@@ -31,6 +35,9 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   final String userId;
   final String nickname;
   final QuizQuestionService _questionService;
+
+  /// Where answers are logged for the statistics (null = not logged).
+  final DatabaseService? _database;
 
   QuizRoomService? _room;
   StreamSubscription<List<RoomPlayer>>? _playersSub;
@@ -52,6 +59,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   int _questionIndex = 0;
   int _questionTotal = 0;
   String _questionText = '';
+  String _questionCategory = '';
   List<String> _questionOptions = const [];
   int? _myChoice;
 
@@ -204,6 +212,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       'index': game.index,
       'total': game.total,
       'text': question.text,
+      'category': question.category ?? '',
       'options': question.options,
       'seconds': game.secondsPerQuestion,
     });
@@ -250,6 +259,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
         _questionIndex = data['index'] as int;
         _questionTotal = data['total'] as int;
         _questionText = data['text'] as String;
+        _questionCategory = data['category'] as String? ?? '';
         _questionOptions = List<String>.from(data['options'] as List);
         _myChoice = null;
         emit(QuizQuestionActive(
@@ -276,6 +286,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
       case 'reveal':
         final scores = _intMap(data['scores']);
         final gained = _intMap(data['gained']);
+        await _logMyAnswer(correctIndex: data['correct'] as int);
         emit(QuizReveal(
           index: data['index'] as int,
           total: _questionTotal,
@@ -339,6 +350,21 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   }
 
   // ---------------------------------------------------------------- helpers
+
+  /// Saves whether this player answered the finished round correctly (no answer counts as a miss).
+  Future<void> _logMyAnswer({required int correctIndex}) async {
+    final database = _database;
+    if (database == null || _questionOptions.isEmpty) return;
+    try {
+      await database.logAnswer(
+        source: AnswerLog.sourceQuiz,
+        category: _questionCategory,
+        correct: _myChoice == correctIndex,
+      );
+    } catch (e) {
+      debugPrint('Could not log the answer: $e'); // statistics must never break a running game
+    }
+  }
 
   Map<String, int> _intMap(Object? raw) {
     if (raw is! Map) return {};

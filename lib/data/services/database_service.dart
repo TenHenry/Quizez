@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../../logic/home/learning_overview.dart';
 import '../../logic/learning/leitner.dart';
+import '../models/answer_log.dart';
 import '../models/deck.dart';
 import '../models/flashcard.dart';
 
@@ -62,7 +63,7 @@ class DatabaseService {
     }
     final dir = await getApplicationDocumentsDirectory();
     return Isar.open(
-      [FlashcardSchema, DeckSchema],
+      [FlashcardSchema, DeckSchema, AnswerLogSchema],
       directory: dir.path,
       name: 'quizez_$userId',
     );
@@ -213,6 +214,32 @@ class DatabaseService {
       card.isDifficult = false; // fully learned
     }
     await _saveCard(card);
+
+    final isar = await db;
+    final deck = await isar.decks.getByUuid(card.deckUuid);
+    await logAnswer(source: AnswerLog.sourceFlashcards, category: deck?.name ?? 'Unknown deck', correct: isCorrect);
+  }
+
+  // ---------------------------------------------------------------- statistics
+
+  /// Remembers one answered question for the statistics.
+  Future<void> logAnswer({required String source, required String category, required bool correct}) async {
+    final isar = await db;
+    final log = AnswerLog()
+      ..uuid = _uuid.v4()
+      ..source = source
+      ..category = category.trim().isEmpty ? 'Other' : category.trim()
+      ..correct = correct
+      ..answeredAt = _now()
+      ..pendingSync = true;
+
+    await isar.writeTxn(() => isar.answerLogs.put(log));
+    onLocalChange?.call();
+  }
+
+  Future<List<AnswerLog>> getAnswerLogs() async {
+    final isar = await db;
+    return isar.answerLogs.where().findAll();
   }
 
   // ---------------------------------------------------------------- helpers

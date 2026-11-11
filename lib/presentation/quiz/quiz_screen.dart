@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../data/services/database_service.dart';
 import '../../data/services/profile_service.dart';
 import '../../logic/quiz/quiz_bloc.dart';
 import '../../logic/quiz/quiz_event.dart';
@@ -22,7 +23,7 @@ class QuizScreen extends StatelessWidget {
     final userId = Supabase.instance.client.auth.currentUser?.id ?? '';
 
     return BlocProvider(
-      create: (_) => QuizBloc(userId: userId, nickname: profile.nickname),
+      create: (_) => QuizBloc(userId: userId, nickname: profile.nickname, database: context.read<DatabaseService>()),
       child: const _QuizFlow(),
     );
   }
