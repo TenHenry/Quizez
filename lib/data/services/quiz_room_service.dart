@@ -13,7 +13,10 @@ class RoomPlayer {
   /// Only meaningful for the host: the game already started, so nobody new can join.
   final bool started;
 
-  const RoomPlayer({required this.id, required this.nickname, required this.isHost, this.started = false});
+  /// Emoji of the avatar bought in the shop (null = none).
+  final String? avatar;
+
+  const RoomPlayer({required this.id, required this.nickname, required this.isHost, this.started = false, this.avatar});
 }
 
 /// A game message sent through the room channel.
@@ -26,15 +29,16 @@ class RoomMessage {
 /// One quiz room = one Supabase Realtime channel.
 /// Presence tells who is in the room, Broadcast carries the game messages. The host's device runs the game.
 class QuizRoomService {
-  QuizRoomService({required this.userId, required this.nickname});
+  QuizRoomService({required this.userId, required this.nickname, this.avatar});
 
   static const maxPlayers = 8;
 
   /// Game messages that are passed on through [messages].
-  static const events = ['start', 'question', 'answer', 'reveal', 'term', 'text', 'results', 'finished'];
+  static const events = ['start', 'question', 'answer', 'reveal', 'term', 'text', 'results', 'emote', 'finished'];
 
   final String userId;
   final String nickname;
+  final String? avatar;
 
   RealtimeChannel? _channel;
   List<RoomPlayer> _players = [];
@@ -137,7 +141,7 @@ class QuizRoomService {
   // ---------------------------------------------------------------- helpers
 
   Future<void> _track() async {
-    await _channel?.track({'id': userId, 'nickname': nickname, 'host': _isHost, 'started': _started});
+    await _channel?.track({'id': userId, 'nickname': nickname, 'host': _isHost, 'started': _started, 'avatar': avatar});
   }
 
   void _syncPlayers() {
@@ -153,6 +157,7 @@ class QuizRoomService {
         nickname: payload['nickname'] as String? ?? 'Player',
         isHost: payload['host'] == true,
         started: payload['started'] == true,
+        avatar: payload['avatar'] as String?,
       ));
     }
     players.sort((a, b) {

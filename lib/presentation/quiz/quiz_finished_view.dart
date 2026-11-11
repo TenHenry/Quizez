@@ -3,7 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../logic/quiz/quiz_bloc.dart';
 import '../../logic/quiz/quiz_event.dart';
+import '../../data/services/rewards_service.dart';
 import '../../logic/quiz/quiz_state.dart';
+import '../rewards/win_animation.dart';
 import 'scoreboard.dart';
 
 /// Final ranking of the game.
@@ -18,7 +20,9 @@ class QuizFinishedView extends StatelessWidget {
     final winner = state.ranking.firstOrNull;
     final iWon = winner != null && winner.playerId == myId;
 
-    return Padding(
+    final animationId = iWon ? context.read<RewardsService>().snapshot.value?.animationId : null;
+
+    final content = Padding(
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -37,5 +41,8 @@ class QuizFinishedView extends StatelessWidget {
         ],
       ),
     );
+
+    if (animationId == null) return content;
+    return Stack(children: [content, Positioned.fill(child: WinAnimation(animationId: animationId))]);
   }
 }

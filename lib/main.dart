@@ -8,6 +8,7 @@ import 'logic/auth/auth_event.dart';
 import 'logic/auth/auth_state.dart';
 import 'presentation/auth/auth_screen.dart';
 import 'data/services/database_service.dart';
+import 'data/services/rewards_service.dart';
 import 'data/services/sync_service.dart';
 import 'logic/learning/learning_bloc.dart';
 
@@ -22,14 +23,15 @@ Future<void> main() async {
   final databaseService = DatabaseService();
   final syncService = SyncService(databaseService);
 
-  runApp(MyApp(databaseService: databaseService, syncService: syncService));
+  runApp(MyApp(databaseService: databaseService, syncService: syncService, rewardsService: RewardsService()));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key, required this.databaseService, required this.syncService});
+  const MyApp({super.key, required this.databaseService, required this.syncService, required this.rewardsService});
 
   final DatabaseService databaseService;
   final SyncService syncService;
+  final RewardsService rewardsService;
 
   // Lets us show a SnackBar with an auth error regardless of which screen is in the tree.
   static final _messengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -40,6 +42,7 @@ class MyApp extends StatelessWidget {
       providers: [
         RepositoryProvider.value(value: databaseService),
         RepositoryProvider.value(value: syncService),
+        RepositoryProvider.value(value: rewardsService),
       ],
       child: MultiBlocProvider(
         providers: [
@@ -59,6 +62,7 @@ class MyApp extends StatelessWidget {
             } else if (state is Authenticated) {
               databaseService.db.ignore(); // open the user's local database right away so the first save is instant
               syncService.requestSync(); // pull the user's data right after sign-in
+              rewardsService.refresh(); // coins, shop and inventory
             }
           },
           child: MaterialApp(

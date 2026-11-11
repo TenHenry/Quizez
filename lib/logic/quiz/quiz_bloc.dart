@@ -26,6 +26,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     DatabaseService? database,
     QuizQuestionService? questionService,
     ClosestMatchScorer? scorer,
+    this.avatar,
   })  : _database = database,
         _scorer = scorer ?? ClosestMatchScorer(),
         _questionService = questionService ?? QuizQuestionService(),
@@ -40,10 +41,14 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     on<RoundTimedOut>(_onRoundTimedOut);
     on<AdvanceRequested>(_onAdvance);
     on<SubmitTextRequested>(_onSubmitText);
+    on<SendEmoteRequested>(_onSendEmote);
   }
 
   final String userId;
   final String nickname;
+
+  /// Emoji of this player's avatar, shown to the others in the room.
+  final String? avatar;
   final QuizQuestionService _questionService;
   final ClosestMatchScorer _scorer;
 
@@ -66,6 +71,13 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
   /// Nicknames of everybody who was in the room (kept after a player leaves, for the scoreboard).
   final Map<String, String> _names = {};
+  final Map<String, String> _avatars = {};
+
+  final _emoteController = StreamController<({String nickname, String glyph})>.broadcast();
+  DateTime _lastEmoteAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Emotes sent by the players of the room (shown briefly on screen).
+  Stream<({String nickname, String glyph})> get emotes => _emoteController.stream;
 
   // Details of the question on screen, needed again when the answer is revealed.
   int _questionIndex = 0;
@@ -138,7 +150,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   }
 
   QuizRoomService _newRoom() {
-    final room = QuizRoomService(userId: userId, nickname: nickname);
+    final room = QuizRoomService(userId: userId, nickname: nickname, avatar: avatar);
     _room = room;
     return room;
   }
@@ -154,6 +166,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
   void _onPlayersUpdated(PlayersUpdated event, Emitter<QuizState> emit) {
     for (final player in event.players) {
       _names[player.id] = player.nickname;
+      if (player.avatar != null) _avatars[player.id] = player.avatar!;
     }
 
     final current = state;
@@ -375,6 +388,13 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
           note: data['note'] as String?,
         ));
 
+      case 'emote':
+        final id = data['playerId'] as String? ?? '';
+        final glyph = data['glyph'] as String? ?? '';
+        if (glyph.isNotEmpty && glyph.runes.length <= 4) {
+          _emoteController.add((nickname: _names[id] ?? 'Player', glyph: glyph));
+        }
+
       case 'finished':
         _timer?.cancel();
         emit(QuizFinished(_ranking(_intMap(data['scores']), const {})));
@@ -492,6 +512,15 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
     });
   }
 
+  // ---------------------------------------------------------------- emotes
+
+  void _onSendEmote(SendEmoteRequested event, Emitter<QuizState> emit) {
+    final now = DateTime.now();
+    if (_room == null || now.difference(_lastEmoteAt) < const Duration(seconds: 1)) return; // no spamming
+    _lastEmoteAt = now;
+    _room?.send('emote', {'playerId': userId, 'glyph': event.glyph});
+  }
+
   // ---------------------------------------------------------------- leaving
 
   Future<void> _onLeave(LeaveRoomRequested event, Emitter<QuizState> emit) async {
@@ -520,6 +549,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
 
   @override
   Future<void> close() async {
+    await _emoteController.close();
     await _closeRoom();
     return super.close();
   }
@@ -554,6 +584,7 @@ class QuizBloc extends Bloc<QuizEvent, QuizState> {
           nickname: _names[e.key] ?? 'Player',
           score: e.value,
           gained: gained[e.key] ?? 0,
+          avatar: _avatars[e.key],
         ),
     ];
     entries.sort((a, b) => b.score.compareTo(a.score));
